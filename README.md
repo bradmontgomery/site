@@ -41,6 +41,9 @@ This is a modern Python project using [uv](https://docs.astral.sh/uv/) for depen
 If you have [uv](https://docs.astral.sh/uv/getting-started/installation/) installed, you can run the commands directly from this repository without cloning:
 
 ```bash
+# Initialize a new site
+uvx --from git+https://github.com/bradmontgomery/site site init
+
 # Build the site
 uvx --from git+https://github.com/bradmontgomery/site site build
 
@@ -64,13 +67,15 @@ uv sync
 Then use the commands with `uv run`:
 
 ```bash
-uv run site build
-uv run site new
-uv run site server
+uv run site init   # Initialize site structure
+uv run site build  # Build the site
+uv run site new    # Create a new post
+uv run site server # Run preview server
 ```
 
 ### Commands
 
+- **`site init`** — Initialize a new site structure (creates content/, templates/, and output/ directories)
 - **`site build`** — Build the static site from content/
 - **`site new`** — Create a new blog post (interactive)
 - **`site server`** — Run a local preview server on localhost:8000

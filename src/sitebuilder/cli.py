@@ -270,6 +270,64 @@ def cli():
 
 @cli.command()
 @click.option(
+    "--content",
+    default="content",
+    help="Content directory to create",
+)
+@click.option(
+    "--templates",
+    default="templates",
+    help="Templates directory to create",
+)
+@click.option(
+    "--output",
+    default="docs",
+    help="Output directory to create",
+)
+def init(content, templates, output):
+    """Initialize a new site structure."""
+    dirs_to_create = [
+        (content, content),
+        (f"{content}/blog", f"{content}/blog"),
+        (f"{content}/pages", f"{content}/pages"),
+        (f"{content}/texts", f"{content}/texts"),
+        (templates, templates),
+        (output, output),
+    ]
+    
+    existing = []
+    for path, display_name in dirs_to_create:
+        if Path(path).exists():
+            existing.append(display_name)
+    
+    if existing:
+        click.secho(
+            f"⚠️  Warning: The following directories already exist:",
+            fg="yellow",
+        )
+        for name in existing:
+            click.echo(f"  - {name}")
+        if not click.confirm("Continue anyway?"):
+            click.echo("Aborted.")
+            return
+    
+    for path, display_name in dirs_to_create:
+        Path(path).mkdir(parents=True, exist_ok=True)
+        click.secho(f"✓ Created {display_name}", fg="green")
+    
+    click.secho("\n✓ Site structure initialized!", fg="green")
+    click.echo(
+        f"\nNext steps:\n"
+        f"  1. Add your markdown files to:\n"
+        f"     - {content}/blog/ (for blog posts)\n"
+        f"     - {content}/pages/ (for pages)\n"
+        f"  2. Create or customize Jinja2 templates in: {templates}/\n"
+        f"  3. Build your site with: site build\n"
+    )
+
+
+@cli.command()
+@click.option(
     "--output", default="docs", help="Output directory from which files are served"
 )
 @click.option("--addr", default="", help="Address to listen on")
