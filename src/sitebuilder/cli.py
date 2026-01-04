@@ -24,9 +24,18 @@ from feedgen.feed import FeedGenerator
 from jinja2 import Environment, PackageLoader, select_autoescape
 from markdown_it import MarkdownIt
 from mdit_py_plugins.front_matter import front_matter_plugin
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.panel import Panel
 import yaml
 
-logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
+console = Console()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[RichHandler(console=console, show_time=False)]
+)
 logger = logging.getLogger(__name__)
 
 
@@ -301,29 +310,31 @@ def init(content, templates, output):
             existing.append(display_name)
     
     if existing:
-        click.secho(
-            f"⚠️  Warning: The following directories already exist:",
-            fg="yellow",
-        )
+        console.print("[bold yellow]⚠️  Warning: The following directories already exist:[/bold yellow]")
         for name in existing:
-            click.echo(f"  - {name}")
+            console.print(f"  • {name}", style="yellow")
         if not click.confirm("Continue anyway?"):
-            click.echo("Aborted.")
+            console.print("[red]Aborted.[/red]")
             return
     
     for path, display_name in dirs_to_create:
         Path(path).mkdir(parents=True, exist_ok=True)
-        click.secho(f"✓ Created {display_name}", fg="green")
+        console.print(f"[green]✓[/green] Created [cyan]{display_name}[/cyan]")
     
-    click.secho("\n✓ Site structure initialized!", fg="green")
-    click.echo(
-        f"\nNext steps:\n"
-        f"  1. Add your markdown files to:\n"
-        f"     - {content}/blog/ (for blog posts)\n"
-        f"     - {content}/pages/ (for pages)\n"
-        f"  2. Create or customize Jinja2 templates in: {templates}/\n"
-        f"  3. Build your site with: site build\n"
-    )
+    console.print()
+    console.print("[bold green]✓ Site structure initialized![/bold green]")
+    
+    next_steps = f"""[bold]Next steps:[/bold]
+
+1. Add your markdown files to:
+   • [cyan]{content}/blog/[/cyan] (for blog posts)
+   • [cyan]{content}/pages/[/cyan] (for pages)
+
+2. Create or customize Jinja2 templates in: [cyan]{templates}/[/cyan]
+
+3. Build your site with: [bold]site build[/bold]
+"""
+    console.print(Panel(next_steps, title="[bold blue]Getting Started[/bold blue]"))
 
 
 @cli.command()
