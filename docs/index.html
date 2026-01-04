@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>site - A Static Site Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #0a0e27;
+            color: #e0e6fc;
+            font-family: 'Courier New', 'Monaco', monospace;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            border-bottom: 2px solid #00d4ff;
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+        }
+
+        .header-title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .header-subtitle {
+            color: #a0afc0;
+            font-style: italic;
+            margin-bottom: 15px;
+        }
+
+        section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            color: #00d4ff;
+            font-size: 24px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #1a2f4a;
+            letter-spacing: 1px;
+        }
+
+        .goal-list {
+            list-style: none;
+            padding-left: 20px;
+        }
+
+        .goal-list li {
+            margin-bottom: 12px;
+            color: #c8d0e0;
+        }
+
+        .goal-list li:before {
+            content: "▹ ";
+            color: #00d4ff;
+            margin-right: 10px;
+        }
+
+        .code-block {
+            background-color: #1a1f3a;
+            border-left: 3px solid #00d4ff;
+            padding: 15px 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+
+        .code-block code {
+            color: #7ade8f;
+            display: block;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .inline-code {
+            background-color: #1a1f3a;
+            color: #7ade8f;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .command-title {
+            color: #00d4ff;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .command-desc {
+            color: #a0afc0;
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .directory-structure {
+            background-color: #1a1f3a;
+            border-left: 3px solid #00d4ff;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .directory-structure code {
+            color: #7ade8f;
+            display: block;
+            white-space: pre;
+            font-size: 12px;
+        }
+
+        .help-output {
+            background-color: #1a1f3a;
+            border: 1px solid #2a3f5a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .help-output code {
+            color: #e0e6fc;
+            display: block;
+            white-space: pre;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .highlight-yellow {
+            color: #ffd700;
+        }
+
+        .highlight-green {
+            color: #7ade8f;
+        }
+
+        .highlight-cyan {
+            color: #00d4ff;
+        }
+
+        .tech-list {
+            list-style: none;
+            padding-left: 20px;
+        }
+
+        .tech-list li {
+            margin-bottom: 10px;
+            color: #c8d0e0;
+        }
+
+        .tech-list li:before {
+            content: "→ ";
+            color: #00d4ff;
+            margin-right: 10px;
+        }
+
+        a {
+            color: #00d4ff;
+            text-decoration: none;
+            border-bottom: 1px dotted #00d4ff;
+            transition: color 0.2s;
+        }
+
+        a:hover {
+            color: #7ade8f;
+            border-bottom-color: #7ade8f;
+        }
+
+        .prompt {
+            color: #7ade8f;
+            margin-right: 8px;
+        }
+
+        footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #1a2f4a;
+            text-align: center;
+            color: #7a8fa6;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .header-title {
+                font-size: 32px;
+            }
+
+            .section-title {
+                font-size: 20px;
+            }
+
+            .container {
+                padding: 20px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">🌐 site</div>
+            <div class="header-subtitle">A little static site generator</div>
+        </header>
+
+        <section>
+            <h2 class="section-title">About</h2>
+            <p style="margin-bottom: 15px; color: #a0afc0;">
+                <span class="highlight-cyan">site</span> is a simple, lightweight static site generator built in Python. It was extracted from my personal blog and designed to be easy to use with clear goals in mind.
+            </p>
+        </section>
+
+        <section>
+            <h2 class="section-title">Why site?</h2>
+            <p style="margin-bottom: 15px; color: #a0afc0;">
+                <span class="highlight-yellow">Mostly because I'm lazy</span> and got tired of trying to learn other systems like Hugo. But it also comes with very clear goals:
+            </p>
+            <ul class="goal-list">
+                <li>Ability to write content in <span class="highlight-green">markdown</span> (with support for CommonMark)</li>
+                <li>Simple, easy-to-learn template engine (<span class="highlight-green">Jinja</span>)</li>
+                <li>Ability to keep the same URLs from django-blargg (good urls don't change)</li>
+                <li>A command-line tool to build content</li>
+                <li>Easy publishing on GitHub Pages</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="section-title">Quick Start with uvx</h2>
+            <p style="margin-bottom: 20px; color: #a0afc0;">
+                If you have <a href="https://docs.astral.sh/uv/">uv</a> installed, you can run commands directly without cloning the repository:
+            </p>
+
+            <div class="command-title"><span class="prompt">$</span> Initialize a new site</div>
+            <div class="code-block"><code>uvx --from git+https://github.com/bradmontgomery/site site init</code></div>
+
+            <div class="command-title"><span class="prompt">$</span> Build the site</div>
+            <div class="code-block"><code>uvx --from git+https://github.com/bradmontgomery/site site build</code></div>
+
+            <div class="command-title"><span class="prompt">$</span> Create a new post</div>
+            <div class="code-block"><code>uvx --from git+https://github.com/bradmontgomery/site site new</code></div>
+
+            <div class="command-title"><span class="prompt">$</span> Run local preview server</div>
+            <div class="code-block"><code>uvx --from git+https://github.com/bradmontgomery/site site server</code></div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Local Development</h2>
+            <p style="margin-bottom: 20px; color: #a0afc0;">
+                Clone the repository and install dependencies with <span class="inline-code">uv</span>:
+            </p>
+
+            <div class="code-block"><code><span class="prompt">$</span> git clone https://github.com/bradmontgomery/site
+<span class="prompt">$</span> cd site
+<span class="prompt">$</span> uv sync</code></div>
+
+            <p style="margin-bottom: 20px; margin-top: 20px; color: #a0afc0;">
+                Then use commands with <span class="inline-code">uv run</span>:
+            </p>
+
+            <div class="code-block"><code><span class="prompt">$</span> uv run site init    <span style="color: #7a8fa6;"># Initialize site structure</span>
+<span class="prompt">$</span> uv run site build   <span style="color: #7a8fa6;"># Build the site</span>
+<span class="prompt">$</span> uv run site new     <span style="color: #7a8fa6;"># Create a new post</span>
+<span class="prompt">$</span> uv run site server  <span style="color: #7a8fa6;"># Run preview server</span></code></div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Content Structure</h2>
+            <p style="margin-bottom: 20px; color: #a0afc0;">
+                Organize your content in the following directory structure:
+            </p>
+            <div class="directory-structure"><code>content/
+    blog/
+        &lt;title-slug&gt;/index.md
+    page/
+        &lt;title&gt;.md</code></div>
+            <p style="margin-top: 20px; color: #a0afc0;">
+                The index page should be a listing of recent posts.
+            </p>
+        </section>
+
+        <section>
+            <h2 class="section-title">Commands</h2>
+            <div class="command-title"><span class="highlight-cyan">site init</span></div>
+            <div class="command-desc">Initialize a new site structure (creates content/, templates/, and output/ directories)</div>
+
+            <div class="command-title"><span class="highlight-cyan">site build</span></div>
+            <div class="command-desc">Build the static site from content/</div>
+
+            <div class="command-title"><span class="highlight-cyan">site new</span></div>
+            <div class="command-desc">Create a new blog post (interactive)</div>
+
+            <div class="command-title"><span class="highlight-cyan">site server</span></div>
+            <div class="command-desc">Run a local preview server on localhost:8000</div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Help Output</h2>
+            <p style="margin-bottom: 20px; color: #a0afc0;">
+                Run <span class="inline-code">uvx --from git+https://github.com/bradmontgomery/site site --help</span> for detailed command information:
+            </p>
+            <div class="help-output"><code><span class="highlight-cyan">Usage:</span> site [OPTIONS] COMMAND [ARGS]...
+
+<span class="highlight-green">Static site generator.</span>
+
+<span class="highlight-cyan">╭─ Options</span> <span style="color: #7a8fa6;">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span>
+<span class="highlight-cyan">│</span> --help  Show this message and exit.                                                                                  <span class="highlight-cyan">│</span>
+<span class="highlight-cyan">╰</span><span style="color: #7a8fa6;">──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span>
+<span class="highlight-cyan">╭─ Commands</span> <span style="color: #7a8fa6;">───────────────────────────────────────────────────────────────────────────────────────────────────────╮</span>
+<span class="highlight-cyan">│</span> build                 Build the site.                                                                                <span class="highlight-cyan">│</span>
+<span class="highlight-cyan">│</span> init                  Initialize a new site structure.                                                               <span class="highlight-cyan">│</span>
+<span class="highlight-cyan">│</span> new                   Create a new blog post.                                                                        <span class="highlight-cyan">│</span>
+<span class="highlight-cyan">│</span> server                Run a local preview HTTP server.                                                               <span class="highlight-cyan">│</span>
+<span class="highlight-cyan">╰</span><span style="color: #7a8fa6;">──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></code></div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Built With</h2>
+            <ul class="tech-list">
+                <li><a href="https://jinja.palletsprojects.com/">Jinja</a> — Templating engine</li>
+                <li><a href="https://github.com/executablebooks/markdown-it-py">markdown-it-py</a> — Markdown parser</li>
+                <li><a href="https://click.palletsprojects.com/">Click</a> — Command-line interface</li>
+                <li><a href="https://arrow.readthedocs.io/">Arrow</a> — Date/time handling</li>
+                <li><a href="https://github.com/danboo/python-feedgen">feedgen</a> — RSS feed generation</li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>For more information, visit the <a href="https://github.com/bradmontgomery/site">GitHub repository</a></p>
+            <p style="margin-top: 10px; color: #4a5a7a;">Made with ❤️ by Brad Montgomery</p>
+        </footer>
+    </div>
+</body>
+</html>
