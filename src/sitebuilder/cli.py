@@ -5,6 +5,7 @@ Markdown content goes in content/blog/ or content/pages/
 Templates are powered by Jinja2
 Run `site build` to build the site.
 """
+
 import http.server
 import logging
 import os
@@ -19,7 +20,7 @@ from pathlib import Path
 from time import time
 
 import arrow
-import click
+from rich_click import click
 from feedgen.feed import FeedGenerator
 from jinja2 import Environment, PackageLoader, select_autoescape
 from markdown_it import MarkdownIt
@@ -34,13 +35,14 @@ console = Console()
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
-    handlers=[RichHandler(console=console, show_time=False)]
+    handlers=[RichHandler(console=console, show_time=False)],
 )
 logger = logging.getLogger(__name__)
 
 
 def to_slug(value):
     """Convert a string to a URL-safe slug."""
+
     def _slugify(s):
         for c in s.lower().replace(" ", "-"):
             if c in string.ascii_lowercase + "-":
@@ -58,8 +60,8 @@ def find_markdown_files(parent: str) -> list:
 
 def parse_front_matter(tokens: list) -> dict:
     """Parse front matter (YAML) from markdown tokens.
-    
-    Supports keys like: title, date, draft, tags, slug, url, 
+
+    Supports keys like: title, date, draft, tags, slug, url,
     aliases, description.
     """
     tokens = [t for t in tokens if t.type == "front_matter"]
@@ -76,7 +78,7 @@ def parse_front_matter(tokens: list) -> dict:
             fm["date"] = dt
     except Exception as err:
         logger.error("Failed to convert date %s: %s", fm.get("date"), str(err))
-    
+
     return fm
 
 
@@ -104,7 +106,7 @@ def get_output_paths(output_dir, context, file):
     urls = []
     if "url" in context:
         urls.append(context["url"].strip("/"))
-    
+
     if "aliases" in context:
         urls += [u.strip("/") for u in context["aliases"]]
 
@@ -238,7 +240,8 @@ def build_feeds(output: str, index: list) -> None:
     fg.language("en")
 
     items = sorted(
-        [post for post in index if not post.get("draft", False)], key=lambda p: p["date"]
+        [post for post in index if not post.get("draft", False)],
+        key=lambda p: p["date"],
     )
     for post in items:
         fe = fg.add_entry()
@@ -303,27 +306,29 @@ def init(content, templates, output):
         (templates, templates),
         (output, output),
     ]
-    
+
     existing = []
     for path, display_name in dirs_to_create:
         if Path(path).exists():
             existing.append(display_name)
-    
+
     if existing:
-        console.print("[bold yellow]⚠️  Warning: The following directories already exist:[/bold yellow]")
+        console.print(
+            "[bold yellow]⚠️  Warning: The following directories already exist:[/bold yellow]"
+        )
         for name in existing:
             console.print(f"  • {name}", style="yellow")
         if not click.confirm("Continue anyway?"):
             console.print("[red]Aborted.[/red]")
             return
-    
+
     for path, display_name in dirs_to_create:
         Path(path).mkdir(parents=True, exist_ok=True)
         console.print(f"[green]✓[/green] Created [cyan]{display_name}[/cyan]")
-    
+
     console.print()
     console.print("[bold green]✓ Site structure initialized![/bold green]")
-    
+
     next_steps = f"""[bold]Next steps:[/bold]
 
 1. Add your markdown files to:
@@ -345,6 +350,7 @@ def init(content, templates, output):
 @click.option("--port", default=8000, help="Port to listen on")
 def server(output, addr, port):
     """Run a local preview HTTP server."""
+
     class Handler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, request, client_address, server, directory=output):
             super().__init__(request, client_address, server, directory=output)
@@ -357,7 +363,9 @@ def server(output, addr, port):
 @cli.command()
 def new():
     """Create a new blog post."""
-    env = Environment(loader=PackageLoader("sitebuilder"), autoescape=select_autoescape())
+    env = Environment(
+        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
+    )
 
     prompts = [
         ("date", "Date (default is now): "),
@@ -396,7 +404,9 @@ def build(content, templates, output):
     """Build the site."""
     start = time()
 
-    env = Environment(loader=PackageLoader("sitebuilder"), autoescape=select_autoescape())
+    env = Environment(
+        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
+    )
 
     index = []
 

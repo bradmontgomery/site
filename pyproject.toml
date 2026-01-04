@@ -18,6 +18,8 @@ dependencies = [
     "arrow>=1.0",
     "pyyaml>=6.0",
     "rich>=13.0",
+    "rich-click>=1.9.5",
+    "ruff>=0.14.10",
 ]
 
 [project.scripts]
