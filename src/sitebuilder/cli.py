@@ -20,7 +20,7 @@ from pathlib import Path
 from time import time
 
 import arrow
-from rich_click import click
+import rich_click as click
 from feedgen.feed import FeedGenerator
 from jinja2 import Environment, PackageLoader, select_autoescape
 from markdown_it import MarkdownIt
