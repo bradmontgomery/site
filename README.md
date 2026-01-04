@@ -36,41 +36,44 @@ The index page should be a listing of _recent_ posts.
 
 This is a modern Python project using [uv](https://docs.astral.sh/uv/) for dependency management.
 
-### Installation
+### Quick Start (with uvx)
 
-First, [install uv](https://docs.astral.sh/uv/getting-started/installation/).
-
-Then, clone this repository and run:
+If you have [uv](https://docs.astral.sh/uv/getting-started/installation/) installed, you can run the commands directly from this repository without cloning:
 
 ```bash
+# Build the site
+uvx --from git+https://github.com/bradmontgomery/site site build
+
+# Create a new post
+uvx --from git+https://github.com/bradmontgomery/site site new
+
+# Run local preview server
+uvx --from git+https://github.com/bradmontgomery/site site server
+```
+
+### Local Development
+
+Clone this repository and install dependencies:
+
+```bash
+git clone https://github.com/bradmontgomery/site
+cd site
 uv sync
 ```
 
-This will create a virtual environment and install all dependencies.
-
-### Usage
-
-#### Build the site
+Then use the commands with `uv run`:
 
 ```bash
 uv run site build
-```
-
-#### Create a new post
-
-```bash
 uv run site new
-```
-
-This will prompt you for post metadata (title, date, tags, etc.) and create a new markdown file in `content/blog/`.
-
-#### Run a local preview server
-
-```bash
 uv run site server
 ```
 
-This starts an HTTP server on `localhost:8000` serving the output directory.
+### Commands
+
+- **`site build`** — Build the static site from content/
+- **`site new`** — Create a new blog post (interactive)
+- **`site server`** — Run a local preview server on localhost:8000
 
 ## Built with
 
