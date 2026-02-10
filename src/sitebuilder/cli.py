@@ -421,7 +421,7 @@ def build(content, templates, output):
                 f.write(html_content)
                 logger.info("Wrote: %s", path)
 
-        if file.strip(content).startswith("/blog"):
+        if file.removeprefix(content).startswith("/blog"):
             index.append(context)
 
     build_index(env, output, index)
