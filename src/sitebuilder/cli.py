@@ -78,8 +78,25 @@ def parse_front_matter(tokens: list) -> dict:
             fm["date"] = dt
     except Exception as err:
         logger.error("Failed to convert date %s: %s", fm.get("date"), str(err))
+        fm.pop("date", None)  # Remove invalid date to prevent downstream errors
 
     return fm
+
+
+def validate_post(context: dict, filename: str) -> bool:
+    """Validate that a post has required fields for indexing.
+
+    Required fields: date, title, url
+    Returns True if valid, False otherwise.
+    """
+    required_fields = ["date", "title", "url"]
+    missing = [field for field in required_fields if field not in context]
+    if missing:
+        logger.warning(
+            "Skipping %s: missing required fields: %s", filename, ", ".join(missing)
+        )
+        return False
+    return True
 
 
 def get_template_context(filename):
@@ -422,7 +439,8 @@ def build(content, templates, output):
                 logger.info("Wrote: %s", path)
 
         if file.removeprefix(content).startswith("/blog"):
-            index.append(context)
+            if validate_post(context, file):
+                index.append(context)
 
     build_index(env, output, index)
     build_tags(env, output, index)
