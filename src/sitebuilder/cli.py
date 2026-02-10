@@ -211,6 +211,7 @@ def build_tags(env, output: str, index: list) -> None:
             by_tags[tag].append(post)
 
     for tag, posts in by_tags.items():
+        posts = sorted(posts, key=lambda d: d["date"], reverse=True)
         context = {
             "title": "Brad Montgomery",
             "subtitle": f"Tagged {tag}",
