@@ -120,6 +120,7 @@ def get_template_name(
 
 def get_output_paths(output_dir, context, file):
     """Determine output path(s) for a file, handling aliases."""
+    output_root = Path(output_dir).resolve()
     urls = []
     if "url" in context:
         urls.append(context["url"].strip("/"))
@@ -132,7 +133,10 @@ def get_output_paths(output_dir, context, file):
 
     results = []
     for url in urls:
-        path = Path(output_dir) / Path(url)
+        path = (output_root / url).resolve()
+        if not path.is_relative_to(output_root):
+            logger.warning("Skipping invalid path outside output directory: %s", url)
+            continue
         path.mkdir(parents=True, exist_ok=True)
         path = path / Path("index.html")
         results.append(str(path))
