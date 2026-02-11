@@ -11,6 +11,13 @@ Remaining issues from code review of sitebuilder project.
 - [x] **HIGH**: Path traversal vulnerability in `get_output_paths`
 - [x] **HIGH**: Unused `--templates` option in `build()` - removed dead option
 - [x] **HIGH**: Deprecated `pubdate()` API - changed to `pubDate()`
+- [x] **MEDIUM**: Duplicate Jinja environment creation - extracted to `get_jinja_env()`
+- [x] **MEDIUM**: Variable shadowing in `render()` - renamed params to `dest_dir`, `template_name`
+- [x] **MEDIUM**: Inconsistent `os.makedirs` vs `Path.mkdir` - standardized on pathlib
+- [x] **MEDIUM**: Removed unused `os` import
+- [x] **MEDIUM**: `ruff` in production dependencies - moved to dev dependencies
+- [x] **MEDIUM**: Server binds to all interfaces - changed default to `127.0.0.1`
+- [x] **MEDIUM**: Inconsistent URL casing in feed generation - standardized to lowercase
 
 ---
 
@@ -22,84 +29,6 @@ Remaining issues from code review of sitebuilder project.
 ---
 
 ## Remaining Issues
-
-### Medium Severity
-
-#### Variable shadowing in `render()`
-**File:** `src/sitebuilder/cli.py:148-158`
-
-Parameters `template` and `path` are reassigned within the function.
-
-```python
-def render(env, path, template, context):
-    filename = "index.html" if template.endswith("html") else "index.md"
-    template = env.get_template(template)  # Shadows parameter
-    path = Path(path)  # Shadows parameter
-    path = path / Path(filename)  # Reassigned again
-```
-
-**Recommendation:** Use distinct variable names like `template_name`, `dest_dir`, `dest_file`.
-
-#### Duplicate Jinja environment creation
-**File:** `src/sitebuilder/cli.py:383, 424`
-
-Same environment setup code repeated in `new()` and `build()`.
-
-**Recommendation:** Extract to a helper function:
-```python
-def get_jinja_env():
-    return Environment(
-        loader=PackageLoader("sitebuilder"),
-        autoescape=select_autoescape()
-    )
-```
-
-#### Inconsistent Path vs os usage
-**Files:** Multiple locations
-
-The code mixes `os.makedirs` (line 243, 247) and `Path.mkdir` (line 135).
-
-**Recommendation:** Standardize on `pathlib.Path` throughout.
-
-#### No error handling for file operations
-**File:** `src/sitebuilder/cli.py:104, 156-157, 436-437`
-
-File operations lack try/except blocks.
-
-```python
-content = Path(filename).read_text()  # No error handling
-with open(path, "w") as f:  # No error handling
-```
-
-#### Server binds to all interfaces by default
-**File:** `src/sitebuilder/cli.py:366`
-
-Default `--addr=""` exposes the server to the network.
-
-```python
-@click.option("--addr", default="", help="Address to listen on")
-# Should default to "127.0.0.1"
-```
-
-#### Missing type hints
-**File:** Throughout `src/sitebuilder/cli.py`
-
-Most functions lack type annotations.
-
-#### Inconsistent URL casing
-**File:** `src/sitebuilder/cli.py:252, 255`
-
-```python
-fg.id("https://BradMontgomery.net")  # Capital letters
-fg.link(href="https://bradmontgomery.net", rel="alternate")  # Lowercase
-```
-
-#### `ruff` in production dependencies
-**File:** `pyproject.toml:22`
-
-The linter should be a dev dependency, not a runtime dependency.
-
----
 
 ### Low Severity
 

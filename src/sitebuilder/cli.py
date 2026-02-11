@@ -8,7 +8,6 @@ Run `site build` to build the site.
 
 import http.server
 import logging
-import os
 import re
 import shutil
 import string
@@ -38,6 +37,13 @@ logging.basicConfig(
     handlers=[RichHandler(console=console, show_time=False)],
 )
 logger = logging.getLogger(__name__)
+
+
+def get_jinja_env() -> Environment:
+    """Create and return a configured Jinja2 environment."""
+    return Environment(
+        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
+    )
 
 
 def to_slug(value):
@@ -150,17 +156,17 @@ def build_static(output):
     shutil.copytree(Path("static"), static_output, dirs_exist_ok=True)
 
 
-def render(env, path, template, context):
+def render(env, dest_dir, template_name, context):
     """Render a Jinja template and write to disk."""
-    filename = "index.html" if template.endswith("html") else "index.md"
-    template = env.get_template(template)
+    filename = "index.html" if template_name.endswith("html") else "index.md"
+    template = env.get_template(template_name)
     content = template.render(**context)
-    path = Path(path)
-    path.mkdir(parents=True, exist_ok=True)
-    path = path / Path(filename)
-    with open(path, "w") as f:
+    dest_path = Path(dest_dir)
+    dest_path.mkdir(parents=True, exist_ok=True)
+    dest_file = dest_path / Path(filename)
+    with open(dest_file, "w") as f:
         f.write(content)
-        logger.info("Wrote %s", path)
+        logger.info("Wrote %s", dest_file)
 
 
 def build_index(env, output: str, index: list, top: int = 20):
@@ -245,17 +251,17 @@ def build_feeds(output: str, index: list) -> None:
     """Build RSS and Atom feeds."""
     rss_path = Path(output) / Path("feed/rss/")
     rss_file = rss_path / Path("rss.xml")
-    os.makedirs(rss_path, exist_ok=True)
+    rss_path.mkdir(parents=True, exist_ok=True)
     rss_file.touch(exist_ok=True)
 
     atom_path = Path(output) / Path("feed/atom/")
     atom_file = atom_path / Path("atom.xml")
-    os.makedirs(atom_path, exist_ok=True)
+    atom_path.mkdir(parents=True, exist_ok=True)
     atom_file.touch(exist_ok=True)
 
     fg = FeedGenerator()
-    fg.id("https://BradMontgomery.net")
-    fg.title("BradMontgomery.net")
+    fg.id("https://bradmontgomery.net")
+    fg.title("bradmontgomery.net")
     fg.author({"name": "Brad Montgomery"})
     fg.link(href="https://bradmontgomery.net", rel="alternate")
     fg.subtitle("brad's blog")
@@ -368,7 +374,7 @@ def init(content, templates, output):
 @click.option(
     "--output", default="docs", help="Output directory from which files are served"
 )
-@click.option("--addr", default="", help="Address to listen on")
+@click.option("--addr", default="127.0.0.1", help="Address to listen on")
 @click.option("--port", default=8000, help="Port to listen on")
 def server(output, addr, port):
     """Run a local preview HTTP server."""
@@ -385,9 +391,7 @@ def server(output, addr, port):
 @cli.command()
 def new():
     """Create a new blog post."""
-    env = Environment(
-        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
-    )
+    env = get_jinja_env()
 
     prompts = [
         ("date", "Date (default is now): "),
@@ -425,9 +429,7 @@ def build(content, output):
     """Build the site."""
     start = time()
 
-    env = Environment(
-        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
-    )
+    env = get_jinja_env()
 
     index = []
 
