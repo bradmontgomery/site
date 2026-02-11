@@ -1,0 +1,27 @@
+{# 
+  Reusable macro for formatting dates with client-side timezone conversion
+  
+  Usage in templates:
+    {% import 'macros/dates.html' as dates %}
+    {{ dates.local_date(post.date, post.date_iso) }}
+#}
+
+{% macro local_date(date_obj, date_iso, format='short') %}
+  {%- if date_iso -%}
+    <time datetime="{{ date_iso }}" data-local="true" class="date-local">
+      {%- if format == 'long' -%}
+        {{ date_obj.strftime("%B %d, %Y at %H:%M UTC") }}
+      {%- elif format == 'date-only' -%}
+        {{ date_obj.strftime("%Y-%m-%d") }}
+      {%- else -%}
+        {{ date_obj.strftime("%Y-%m-%d %H:%M UTC") }}
+      {%- endif -%}
+    </time>
+  {%- endif -%}
+{% endmacro %}
+
+{% macro archive_date(date_obj) %}
+  {%- if date_obj -%}
+    <span class="archive-date">{{ date_obj.strftime("%B %d, %Y") }}</span>
+  {%- endif -%}
+{% endmacro %}

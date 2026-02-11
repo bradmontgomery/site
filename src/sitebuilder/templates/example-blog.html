@@ -1,0 +1,29 @@
+<!-- Example blog post template with timezone-aware dates -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+</head>
+<body>
+    <article>
+        <h1>{{ title }}</h1>
+        
+        <!-- Published date with client-side timezone conversion -->
+        {% if date %}
+        <time datetime="{{ date_iso }}" data-local="true">
+            {{ date.strftime("%Y-%m-%d %H:%M UTC") }}
+        </time>
+        {% endif %}
+        
+        <!-- Post content -->
+        <div class="content">
+            {{ html_content|safe }}
+        </div>
+    </article>
+    
+    <!-- Load timezone converter at end of page -->
+    <script src="/static/js/timezone.js"></script>
+</body>
+</html>

@@ -24,6 +24,37 @@ Remaining issues from code review of sitebuilder project.
 
 ---
 
+## Features Implemented
+
+### Client-Side Timezone Conversion (NEW)
+**Status**: Implemented ✓
+
+Feature allows blog dates to be displayed in user's local timezone on the client side while all dates remain stored/transmitted in UTC.
+
+**Implementation**:
+- Backend: Added `date_iso` field to all post contexts containing ISO 8601 UTC timestamp
+- Frontend: Created `timezone.js` module for automatic client-side conversion
+- Templates: Added date formatting macros for consistency
+
+**Files**:
+- `src/sitebuilder/cli.py`: Added `date_iso` generation in `get_template_context()`
+- `src/sitebuilder/templates/static/js/timezone.js`: Client-side conversion logic (~2.2 KB)
+- `src/sitebuilder/templates/macros/dates.html`: Reusable date formatting macros
+- `src/sitebuilder/templates/example-blog.html`: Example template usage
+- `TIMEZONE_CONVERSION.md`: Complete feature documentation
+
+**Key Features**:
+- Automatic browser timezone detection
+- Locale-aware date formatting via `Intl.DateTimeFormat`
+- No external dependencies (pure JavaScript)
+- Graceful fallback if JS disabled
+- Accessible: uses semantic `<time>` elements with `datetime` attributes
+- RSS/Atom feeds unaffected (continue using UTC)
+
+See `TIMEZONE_CONVERSION.md` for usage guide.
+
+---
+
 ## Not Actually Bugs (Investigated and Cleared)
 
 - ~~Incorrect `fe.author()` call syntax~~ - keyword arguments ARE supported by feedgen
