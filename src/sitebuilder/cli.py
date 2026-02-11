@@ -273,7 +273,7 @@ def build_feeds(output: str, index: list) -> None:
         fe.link(href="https://bradmontgomery.net" + post["url"])
         fe.content(post["html_content"])
         fe.description(description=post.get("description"))
-        fe.pubdate(post["date"])
+        fe.pubDate(post["date"])
 
     logger.info("Generating ATOM feed")
     fg.atom_file(atom_file)
@@ -420,9 +420,8 @@ def new():
 
 @cli.command()
 @click.option("--content", default="content", help="Content directory")
-@click.option("--templates", default="templates", help="Template directory")
 @click.option("--output", default="docs", help="Output directory")
-def build(content, templates, output):
+def build(content, output):
     """Build the site."""
     start = time()
 
