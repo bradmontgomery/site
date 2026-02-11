@@ -18,6 +18,9 @@ Remaining issues from code review of sitebuilder project.
 - [x] **MEDIUM**: `ruff` in production dependencies - moved to dev dependencies
 - [x] **MEDIUM**: Server binds to all interfaces - changed default to `127.0.0.1`
 - [x] **MEDIUM**: Inconsistent URL casing in feed generation - standardized to lowercase
+- [x] **LOW**: Magic strings for hardcoded author/site info - extracted to constants
+- [x] **LOW**: `to_slug()` duplicates `normalize_tag()` - now uses `normalize_tag()`
+- [x] **LOW**: Removed unused `string` import (after `to_slug` refactor)
 
 ---
 
@@ -30,36 +33,25 @@ Remaining issues from code review of sitebuilder project.
 
 ## Remaining Issues
 
-### Low Severity
-
-#### Magic strings for hardcoded author/site info
-**File:** `src/sitebuilder/cli.py:165-166, 252-256`
-
-Site title, URL, and author are hardcoded in multiple places.
-
-**Recommendation:** Extract to a config dict or constants.
-
-#### Unused `os` import
-**File:** `src/sitebuilder/cli.py:11`
-
-Only used for `os.makedirs` which could be replaced with `Path.mkdir`.
-
-#### `to_slug()` duplicates `normalize_tag()` functionality
-**File:** `src/sitebuilder/cli.py:43-51`
-
-The `to_slug()` function could reuse `normalize_tag()` which handles more edge cases.
+### Low Severity (Won't Fix / Acceptable)
 
 #### Inconsistent logging vs console.print
 **File:** Throughout
 
 The code uses both `logger.info()` and `console.print()` for user feedback.
 
+**Status:** Acceptable - `logger` is used for build operations, `console.print` for interactive CLI feedback (init command). This is a reasonable pattern.
+
 #### Package name mismatch
 **File:** `pyproject.toml:6, 26`
 
 Package is named `site` but module is `sitebuilder`. While functional, this can be confusing.
 
+**Status:** Won't fix - changing would break existing installations.
+
 #### Confusing module/function naming in `__main__.py`
 **File:** `src/sitebuilder/__main__.py`
 
 `cli` is both a module name and a function name, which can cause confusion.
+
+**Status:** Acceptable - this is a common Python CLI pattern.
