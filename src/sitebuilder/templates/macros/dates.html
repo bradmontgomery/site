@@ -1,9 +1,20 @@
-{# 
-  Reusable macro for formatting dates with client-side timezone conversion
-  
-  Usage in templates:
+{#
+  Date formatting macros with client-side timezone conversion.
+
+  Renders a <time> element whose UTC datetime attribute is converted to the
+  reader's local timezone by static/js/timezone.js.  If JavaScript is
+  disabled the server-rendered UTC text is shown as a fallback.
+
+  Usage:
     {% import 'macros/dates.html' as dates %}
     {{ dates.local_date(post.date, post.date_iso) }}
+    {{ dates.local_date(post.date, post.date_iso, format='long') }}
+    {{ dates.local_date(post.date, post.date_iso, format='date-only') }}
+
+  Formats:
+    'short'     (default) — 2024-02-11 15:30 UTC
+    'long'                — February 11, 2024 at 15:30 UTC
+    'date-only'           — 2024-02-11
 #}
 
 {% macro local_date(date_obj, date_iso, format='short') %}
