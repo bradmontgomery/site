@@ -8,10 +8,8 @@ Run `site build` to build the site.
 
 import http.server
 import logging
-import os
 import re
 import shutil
-import string
 import unicodedata
 from collections import defaultdict
 from glob import glob
@@ -39,16 +37,40 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Site configuration
+SITE_TITLE = "Brad Montgomery"
+SITE_URL = "https://bradmontgomery.net"
+SITE_AUTHOR = "Brad Montgomery"
+SITE_SUBTITLE = "brad's blog"
 
-def to_slug(value):
-    """Convert a string to a URL-safe slug."""
 
-    def _slugify(s):
-        for c in s.lower().replace(" ", "-"):
-            if c in string.ascii_lowercase + "-":
-                yield c
+def normalize_tag(value: str) -> str:
+    """Normalize a string to a URL-safe slug.
 
-    return "".join(list(_slugify(value)))
+    Handles unicode characters, collapses multiple dashes, and strips
+    leading/trailing dashes and underscores.
+    """
+    value = (
+        unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    )
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
+
+
+def to_slug(value: str) -> str:
+    """Convert a string to a URL-safe slug.
+
+    This is an alias for normalize_tag() for semantic clarity when working with
+    post titles rather than tags.
+    """
+    return normalize_tag(value)
+
+
+def get_jinja_env() -> Environment:
+    """Create and return a configured Jinja2 environment."""
+    return Environment(
+        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
+    )
 
 
 def find_markdown_files(parent: str) -> list:
@@ -78,8 +100,25 @@ def parse_front_matter(tokens: list) -> dict:
             fm["date"] = dt
     except Exception as err:
         logger.error("Failed to convert date %s: %s", fm.get("date"), str(err))
+        fm.pop("date", None)  # Remove invalid date to prevent downstream errors
 
     return fm
+
+
+def validate_post(context: dict, filename: str) -> bool:
+    """Validate that a post has required fields for indexing.
+
+    Required fields: date, title, url
+    Returns True if valid, False otherwise.
+    """
+    required_fields = ["date", "title", "url"]
+    missing = [field for field in required_fields if field not in context]
+    if missing:
+        logger.warning(
+            "Skipping %s: missing required fields: %s", filename, ", ".join(missing)
+        )
+        return False
+    return True
 
 
 def get_template_context(filename):
@@ -89,6 +128,9 @@ def get_template_context(filename):
     md = MarkdownIt().use(front_matter_plugin).enable("table")
     context = parse_front_matter(md.parse(content))
     context["html_content"] = md.render(content)
+    # Add ISO 8601 timestamp for client-side timezone conversion
+    if "date" in context:
+        context["date_iso"] = context["date"].isoformat()
     return context
 
 
@@ -103,6 +145,7 @@ def get_template_name(
 
 def get_output_paths(output_dir, context, file):
     """Determine output path(s) for a file, handling aliases."""
+    output_root = Path(output_dir).resolve()
     urls = []
     if "url" in context:
         urls.append(context["url"].strip("/"))
@@ -115,7 +158,10 @@ def get_output_paths(output_dir, context, file):
 
     results = []
     for url in urls:
-        path = Path(output_dir) / Path(url)
+        path = (output_root / url).resolve()
+        if not path.is_relative_to(output_root):
+            logger.warning("Skipping invalid path outside output directory: %s", url)
+            continue
         path.mkdir(parents=True, exist_ok=True)
         path = path / Path("index.html")
         results.append(str(path))
@@ -129,17 +175,17 @@ def build_static(output):
     shutil.copytree(Path("static"), static_output, dirs_exist_ok=True)
 
 
-def render(env, path, template, context):
+def render(env, dest_dir, template_name, context):
     """Render a Jinja template and write to disk."""
-    filename = "index.html" if template.endswith("html") else "index.md"
-    template = env.get_template(template)
+    filename = "index.html" if template_name.endswith("html") else "index.md"
+    template = env.get_template(template_name)
     content = template.render(**context)
-    path = Path(path)
-    path.mkdir(parents=True, exist_ok=True)
-    path = path / Path(filename)
-    with open(path, "w") as f:
+    dest_path = Path(dest_dir)
+    dest_path.mkdir(parents=True, exist_ok=True)
+    dest_file = dest_path / Path(filename)
+    with open(dest_file, "w") as f:
         f.write(content)
-        logger.info("Wrote %s", path)
+        logger.info("Wrote %s", dest_file)
 
 
 def build_index(env, output: str, index: list, top: int = 20):
@@ -147,15 +193,15 @@ def build_index(env, output: str, index: list, top: int = 20):
     index = sorted(index, key=lambda d: d["date"], reverse=True)
 
     context = {
-        "title": "Brad Montgomery",
+        "title": SITE_TITLE,
         "subtitle": "Latest posts...",
         "posts": index[:top],
     }
     render(env, Path(output), "index.html", context)
 
     context = {
-        "title": "Brad Montgomery",
-        "subtitle": "Brad's Blog. All of it.",
+        "title": SITE_TITLE,
+        "subtitle": f"{SITE_TITLE}'s Blog. All of it.",
         "posts": index,
     }
     render(env, Path(output) / Path("blog"), "index.html", context)
@@ -184,21 +230,12 @@ def build_date_archives(env, output: str, index: list):
         render(env, f"{output}/{path}", "index.html", context)
 
 
-def normalize_tag(value: str) -> str:
-    """Normalize tags to URL-safe strings."""
-    value = (
-        unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
-    )
-    value = re.sub(r"[^\w\s-]", "", value.lower())
-    return re.sub(r"[-\s]+", "-", value).strip("-_")
-
-
 def build_tags(env, output: str, index: list) -> None:
     """Build tag index and tag archive pages."""
     tags = sorted(set(chain(*[post.get("tags", []) for post in index])))
     tags = [normalize_tag(tag) for tag in tags]
     context = {
-        "title": "Brad Montgomery",
+        "title": SITE_TITLE,
         "subtitle": "Tags",
         "tags": [(tag, f"/blog/tags/{tag}/") for tag in tags],
     }
@@ -211,8 +248,9 @@ def build_tags(env, output: str, index: list) -> None:
             by_tags[tag].append(post)
 
     for tag, posts in by_tags.items():
+        posts = sorted(posts, key=lambda d: d["date"], reverse=True)
         context = {
-            "title": "Brad Montgomery",
+            "title": SITE_TITLE,
             "subtitle": f"Tagged {tag}",
             "posts": posts,
         }
@@ -223,20 +261,20 @@ def build_feeds(output: str, index: list) -> None:
     """Build RSS and Atom feeds."""
     rss_path = Path(output) / Path("feed/rss/")
     rss_file = rss_path / Path("rss.xml")
-    os.makedirs(rss_path, exist_ok=True)
+    rss_path.mkdir(parents=True, exist_ok=True)
     rss_file.touch(exist_ok=True)
 
     atom_path = Path(output) / Path("feed/atom/")
     atom_file = atom_path / Path("atom.xml")
-    os.makedirs(atom_path, exist_ok=True)
+    atom_path.mkdir(parents=True, exist_ok=True)
     atom_file.touch(exist_ok=True)
 
     fg = FeedGenerator()
-    fg.id("https://BradMontgomery.net")
-    fg.title("BradMontgomery.net")
-    fg.author({"name": "Brad Montgomery"})
-    fg.link(href="https://bradmontgomery.net", rel="alternate")
-    fg.subtitle("brad's blog")
+    fg.id(SITE_URL)
+    fg.title(SITE_TITLE)
+    fg.author({"name": SITE_AUTHOR})
+    fg.link(href=SITE_URL, rel="alternate")
+    fg.subtitle(SITE_SUBTITLE)
     fg.language("en")
 
     items = sorted(
@@ -245,13 +283,13 @@ def build_feeds(output: str, index: list) -> None:
     )
     for post in items:
         fe = fg.add_entry()
-        fe.id("https://bradmontgomery.net" + post["url"])
-        fe.author(name="Brad Montgomery")
+        fe.id(SITE_URL + post["url"])
+        fe.author(name=SITE_AUTHOR)
         fe.title(post["title"])
-        fe.link(href="https://bradmontgomery.net" + post["url"])
+        fe.link(href=SITE_URL + post["url"])
         fe.content(post["html_content"])
         fe.description(description=post.get("description"))
-        fe.pubdate(post["date"])
+        fe.pubDate(post["date"])
 
     logger.info("Generating ATOM feed")
     fg.atom_file(atom_file)
@@ -346,7 +384,7 @@ def init(content, templates, output):
 @click.option(
     "--output", default="docs", help="Output directory from which files are served"
 )
-@click.option("--addr", default="", help="Address to listen on")
+@click.option("--addr", default="127.0.0.1", help="Address to listen on")
 @click.option("--port", default=8000, help="Port to listen on")
 def server(output, addr, port):
     """Run a local preview HTTP server."""
@@ -363,9 +401,7 @@ def server(output, addr, port):
 @cli.command()
 def new():
     """Create a new blog post."""
-    env = Environment(
-        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
-    )
+    env = get_jinja_env()
 
     prompts = [
         ("date", "Date (default is now): "),
@@ -398,15 +434,12 @@ def new():
 
 @cli.command()
 @click.option("--content", default="content", help="Content directory")
-@click.option("--templates", default="templates", help="Template directory")
 @click.option("--output", default="docs", help="Output directory")
-def build(content, templates, output):
+def build(content, output):
     """Build the site."""
     start = time()
 
-    env = Environment(
-        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
-    )
+    env = get_jinja_env()
 
     index = []
 
@@ -420,8 +453,9 @@ def build(content, templates, output):
                 f.write(html_content)
                 logger.info("Wrote: %s", path)
 
-        if file.strip(content).startswith("/blog"):
-            index.append(context)
+        if file.removeprefix(content).startswith("/blog"):
+            if validate_post(context, file):
+                index.append(context)
 
     build_index(env, output, index)
     build_tags(env, output, index)

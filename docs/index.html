@@ -330,6 +330,30 @@
         </section>
 
         <section>
+            <h2 class="section-title">Features</h2>
+
+            <div class="command-title"><span class="highlight-cyan">Client-Side Timezone Conversion</span></div>
+            <p style="margin-bottom: 15px; color: #a0afc0;">
+                Blog post dates are stored and transmitted in UTC. When a page loads, a small
+                JavaScript module (<span class="inline-code">timezone.js</span>) converts
+                <span class="inline-code">&lt;time&gt;</span> elements to the reader's local
+                timezone using the browser's <span class="inline-code">Intl.DateTimeFormat</span> API.
+            </p>
+            <p style="margin-bottom: 15px; color: #a0afc0;">
+                Use the Jinja macro for consistent markup:
+            </p>
+            <div class="code-block"><code>{% import 'macros/dates.html' as dates %}
+
+{{ dates.local_date(post.date, post.date_iso) }}
+{{ dates.local_date(post.date, post.date_iso, format='long') }}
+{{ dates.local_date(post.date, post.date_iso, format='date-only') }}</code></div>
+            <p style="margin-top: 15px; color: #a0afc0;">
+                If JavaScript is disabled, readers see the UTC fallback text rendered by the
+                server. RSS/Atom feeds are unaffected and continue to use UTC.
+            </p>
+        </section>
+
+        <section>
             <h2 class="section-title">Built With</h2>
             <ul class="tech-list">
                 <li><a href="https://jinja.palletsprojects.com/">Jinja</a> — Templating engine</li>

@@ -80,6 +80,27 @@ uv run site server # Run preview server
 - **`site new`** — Create a new blog post (interactive)
 - **`site server`** — Run a local preview server on localhost:8000
 
+## Features
+
+### Client-Side Timezone Conversion
+
+Blog post dates are stored and transmitted in UTC. When a page loads, a small
+JavaScript module (`timezone.js`) converts `<time>` elements to the reader's
+local timezone using the browser's `Intl.DateTimeFormat` API.
+
+Use the Jinja macro for consistent markup:
+
+```jinja2
+{% import 'macros/dates.html' as dates %}
+
+{{ dates.local_date(post.date, post.date_iso) }}
+{{ dates.local_date(post.date, post.date_iso, format='long') }}
+{{ dates.local_date(post.date, post.date_iso, format='date-only') }}
+```
+
+If JavaScript is disabled, readers see the UTC fallback text rendered by the
+server. RSS/Atom feeds are unaffected and continue to use UTC.
+
 ## Built with
 
 - [jinja](https://jinja.palletsprojects.com/)
