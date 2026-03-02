@@ -48,25 +48,25 @@
    * Format an ISO 8601 datetime string in the user's local timezone.
    * @param {string} isoString - ISO 8601 datetime (e.g. "2024-02-11T15:30:45+00:00")
    * @param {Intl.DateTimeFormat} formatter - Reusable formatter instance
-   * @returns {string} Formatted local date/time, or the original string on failure
+   * @returns {string|null} Formatted local date/time, or null on failure
    */
   function formatLocalDate(isoString, formatter) {
     var date = new Date(isoString);
 
     if (isNaN(date.getTime())) {
       console.warn('Invalid date string:', isoString);
-      return isoString;
+      return null;
     }
 
     if (!formatter) {
-      return isoString;
+      return null;
     }
 
     try {
       return formatter.format(date);
     } catch (error) {
       console.error('Error formatting date:', error);
-      return isoString;
+      return null;
     }
   }
 
@@ -77,14 +77,17 @@
     var formatter = createFormatter();
     var timeElements = document.querySelectorAll('time[data-local="true"]');
 
-    timeElements.forEach(function(timeEl) {
+    for (var i = 0; i < timeElements.length; i++) {
+      var timeEl = timeElements[i];
       var isoString = timeEl.getAttribute('datetime');
       if (isoString) {
         var localTime = formatLocalDate(isoString, formatter);
-        timeEl.textContent = localTime;
-        timeEl.setAttribute('title', isoString + ' (UTC)');
+        if (localTime !== null) {
+          timeEl.textContent = localTime;
+          timeEl.setAttribute('title', isoString + ' (UTC)');
+        }
       }
-    });
+    }
   }
 
   // Run conversion when DOM is ready

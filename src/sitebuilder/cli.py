@@ -325,23 +325,17 @@ def cli():
     help="Content directory to create",
 )
 @click.option(
-    "--templates",
-    default="templates",
-    help="Templates directory to create",
-)
-@click.option(
     "--output",
     default="docs",
     help="Output directory to create",
 )
-def init(content, templates, output):
+def init(content, output):
     """Initialize a new site structure."""
     dirs_to_create = [
         (content, content),
         (f"{content}/blog", f"{content}/blog"),
         (f"{content}/pages", f"{content}/pages"),
         (f"{content}/texts", f"{content}/texts"),
-        (templates, templates),
         (output, output),
     ]
 
@@ -373,9 +367,7 @@ def init(content, templates, output):
    • [cyan]{content}/blog/[/cyan] (for blog posts)
    • [cyan]{content}/pages/[/cyan] (for pages)
 
-2. Create or customize Jinja2 templates in: [cyan]{templates}/[/cyan]
-
-3. Build your site with: [bold]site build[/bold]
+2. Build your site with: [bold]site build[/bold]
 """
     console.print(Panel(next_steps, title="[bold blue]Getting Started[/bold blue]"))
 
