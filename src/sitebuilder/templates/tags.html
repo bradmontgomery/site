@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+</head>
+<body>
+    <header>
+        <h1>{{ title }}</h1>
+        {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+    </header>
+
+    <main>
+        <ul>
+        {% for tag, url in tags %}
+            <li><a href="{{ url }}">{{ tag }}</a></li>
+        {% else %}
+            <li>No tags found.</li>
+        {% endfor %}
+        </ul>
+    </main>
+</body>
+</html>
