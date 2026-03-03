@@ -232,7 +232,7 @@ def build_date_archives(env, output: str, index: list):
 
 def build_tags(env, output: str, index: list) -> None:
     """Build tag index and tag archive pages."""
-    tags = sorted(set(chain(*[post.get("tags", []) for post in index])))
+    tags = sorted(set(chain(*[post.get("tags") or [] for post in index])))
     tags = [normalize_tag(tag) for tag in tags]
     context = {
         "title": SITE_TITLE,
@@ -243,7 +243,7 @@ def build_tags(env, output: str, index: list) -> None:
 
     by_tags = defaultdict(list)
     for post in index:
-        for tag in post.get("tags", []):
+        for tag in post.get("tags") or []:
             tag = normalize_tag(tag)
             by_tags[tag].append(post)
 
