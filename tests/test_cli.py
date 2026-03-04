@@ -26,7 +26,6 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from click.testing import CliRunner
 from markdown_it import MarkdownIt
 from mdit_py_plugins.front_matter import front_matter_plugin
