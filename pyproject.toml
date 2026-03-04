@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "site"
-version = "0.3.0"
+version = "0.4.0"
 description = "A simple static site generator"
 readme = "README.md"
 license = {text = "MIT"}
@@ -24,6 +24,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "ruff>=0.14.10",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
 ]
 
 [project.scripts]
