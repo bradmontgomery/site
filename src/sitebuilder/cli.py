@@ -10,8 +10,10 @@ import http.server
 import logging
 import re
 import shutil
+import tomllib
 import unicodedata
 from collections import defaultdict
+from dataclasses import dataclass
 from glob import glob
 from itertools import chain
 from pathlib import Path
@@ -20,7 +22,7 @@ from time import time
 import arrow
 import rich_click as click
 from feedgen.feed import FeedGenerator
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader, select_autoescape
 from markdown_it import MarkdownIt
 from mdit_py_plugins.front_matter import front_matter_plugin
 from rich.console import Console
@@ -37,11 +39,33 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Site configuration
-SITE_TITLE = "Brad Montgomery"
-SITE_URL = "https://bradmontgomery.net"
-SITE_AUTHOR = "Brad Montgomery"
-SITE_SUBTITLE = "brad's blog"
+@dataclass
+class SiteConfig:
+    title: str = "My Site"
+    url: str = "http://localhost"
+    author: str = ""
+    subtitle: str = ""
+    templates_dir: str | None = None  # path relative to CWD; None = package templates only
+    static_dir: str = "static"        # user's static assets dir, relative to CWD
+
+
+def load_config(config_path: Path | None = None) -> SiteConfig:
+    """Load site configuration from site.toml, returning defaults if absent."""
+    path = config_path or Path("site.toml")
+    if not path.exists():
+        return SiteConfig()
+    with path.open("rb") as f:
+        data = tomllib.load(f)
+    site = data.get("site", {})
+    build = data.get("build", {})
+    return SiteConfig(
+        title=site.get("title", "My Site"),
+        url=site.get("url", "http://localhost"),
+        author=site.get("author", ""),
+        subtitle=site.get("subtitle", ""),
+        templates_dir=build.get("templates_dir"),
+        static_dir=build.get("static_dir", "static"),
+    )
 
 
 def normalize_tag(value: str) -> str:
@@ -66,11 +90,19 @@ def to_slug(value: str) -> str:
     return normalize_tag(value)
 
 
-def get_jinja_env() -> Environment:
+def get_jinja_env(config: SiteConfig | None = None) -> Environment:
     """Create and return a configured Jinja2 environment."""
-    return Environment(
-        loader=PackageLoader("sitebuilder"), autoescape=select_autoescape()
-    )
+    package_loader = PackageLoader("sitebuilder")
+    if config and config.templates_dir:
+        user_dir = Path(config.templates_dir)
+        if user_dir.is_dir():
+            loader = ChoiceLoader([FileSystemLoader(str(user_dir)), package_loader])
+        else:
+            logger.warning("templates_dir %r not found; using package templates", config.templates_dir)
+            loader = package_loader
+    else:
+        loader = package_loader
+    return Environment(loader=loader, autoescape=select_autoescape())
 
 
 def find_markdown_files(parent: str) -> list:
@@ -168,11 +200,23 @@ def get_output_paths(output_dir, context, file):
     return results
 
 
-def build_static(output):
+def build_static(output: str, config: SiteConfig | None = None) -> None:
     """Copy static files to output directory."""
-    static_output = Path(output) / Path("static")
-    logger.info("Building Static output in: %s", static_output)
-    shutil.copytree(Path("static"), static_output, dirs_exist_ok=True)
+    static_output = Path(output) / "static"
+    logger.info("Building static output in: %s", static_output)
+    static_output.mkdir(parents=True, exist_ok=True)
+
+    # Always copy vendored package assets first
+    vendored = Path(__file__).parent / "templates" / "static"
+    if vendored.is_dir():
+        shutil.copytree(vendored, static_output, dirs_exist_ok=True)
+
+    # Overlay user's static dir on top (user files win on conflict)
+    user_static = Path(config.static_dir if config else "static")
+    if user_static.is_dir():
+        shutil.copytree(user_static, static_output, dirs_exist_ok=True)
+    else:
+        logger.info("No user static dir at %r; skipping overlay", str(user_static))
 
 
 def render(env, dest_dir, template_name, context):
@@ -188,20 +232,20 @@ def render(env, dest_dir, template_name, context):
         logger.info("Wrote %s", dest_file)
 
 
-def build_index(env, output: str, index: list, top: int = 20):
+def build_index(env, output: str, index: list, config: SiteConfig, top: int = 20):
     """Build index page with latest articles."""
     index = sorted(index, key=lambda d: d["date"], reverse=True)
 
     context = {
-        "title": SITE_TITLE,
+        "title": config.title,
         "subtitle": "Latest posts...",
         "posts": index[:top],
     }
     render(env, Path(output), "index.html", context)
 
     context = {
-        "title": SITE_TITLE,
-        "subtitle": f"{SITE_TITLE}'s Blog. All of it.",
+        "title": config.title,
+        "subtitle": f"{config.title}'s Blog. All of it.",
         "posts": index,
     }
     render(env, Path(output) / Path("blog"), "index.html", context)
@@ -230,12 +274,12 @@ def build_date_archives(env, output: str, index: list):
         render(env, f"{output}/{path}", "index.html", context)
 
 
-def build_tags(env, output: str, index: list) -> None:
+def build_tags(env, output: str, index: list, config: SiteConfig) -> None:
     """Build tag index and tag archive pages."""
     tags = sorted(set(chain(*[post.get("tags") or [] for post in index])))
     tags = [normalize_tag(tag) for tag in tags]
     context = {
-        "title": SITE_TITLE,
+        "title": config.title,
         "subtitle": "Tags",
         "tags": [(tag, f"/blog/tags/{tag}/") for tag in tags],
     }
@@ -250,14 +294,14 @@ def build_tags(env, output: str, index: list) -> None:
     for tag, posts in by_tags.items():
         posts = sorted(posts, key=lambda d: d["date"], reverse=True)
         context = {
-            "title": SITE_TITLE,
+            "title": config.title,
             "subtitle": f"Tagged {tag}",
             "posts": posts,
         }
         render(env, f"{output}/blog/tags/{tag}", "index.html", context)
 
 
-def build_feeds(output: str, index: list) -> None:
+def build_feeds(output: str, index: list, config: SiteConfig) -> None:
     """Build RSS and Atom feeds."""
     rss_path = Path(output) / Path("feed/rss/")
     rss_file = rss_path / Path("rss.xml")
@@ -270,11 +314,11 @@ def build_feeds(output: str, index: list) -> None:
     atom_file.touch(exist_ok=True)
 
     fg = FeedGenerator()
-    fg.id(SITE_URL)
-    fg.title(SITE_TITLE)
-    fg.author({"name": SITE_AUTHOR})
-    fg.link(href=SITE_URL, rel="alternate")
-    fg.subtitle(SITE_SUBTITLE)
+    fg.id(config.url)
+    fg.title(config.title)
+    fg.author({"name": config.author})
+    fg.link(href=config.url, rel="alternate")
+    fg.subtitle(config.subtitle or config.title)
     fg.language("en")
 
     items = sorted(
@@ -283,10 +327,10 @@ def build_feeds(output: str, index: list) -> None:
     )
     for post in items:
         fe = fg.add_entry()
-        fe.id(SITE_URL + post["url"])
-        fe.author(name=SITE_AUTHOR)
+        fe.id(config.url + post["url"])
+        fe.author(name=config.author)
         fe.title(post["title"])
-        fe.link(href=SITE_URL + post["url"])
+        fe.link(href=config.url + post["url"])
         fe.content(post["html_content"])
         fe.description(description=post.get("description"))
         fe.pubDate(post["date"])
@@ -393,7 +437,8 @@ def server(output, addr, port):
 @cli.command()
 def new():
     """Create a new blog post."""
-    env = get_jinja_env()
+    config = load_config()
+    env = get_jinja_env(config)
 
     prompts = [
         ("date", "Date (default is now): "),
@@ -431,7 +476,8 @@ def build(content, output):
     """Build the site."""
     start = time()
 
-    env = get_jinja_env()
+    config = load_config()
+    env = get_jinja_env(config)
 
     index = []
 
@@ -449,12 +495,12 @@ def build(content, output):
             if validate_post(context, file):
                 index.append(context)
 
-    build_index(env, output, index)
-    build_tags(env, output, index)
+    build_index(env, output, index, config)
+    build_tags(env, output, index, config)
     build_date_archives(env, output, index)
-    build_feeds(output, index)
+    build_feeds(output, index, config)
 
-    build_static(output)
+    build_static(output, config)
     copy_texts(content, output)
 
     elapsed = round(time() - start, 2)
