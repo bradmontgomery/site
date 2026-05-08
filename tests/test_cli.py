@@ -32,10 +32,12 @@ from markdown_it import MarkdownIt
 from mdit_py_plugins.front_matter import front_matter_plugin
 
 from sitebuilder.cli import (
+    SiteConfig,
     build_static,
     cli,
     get_output_paths,
     get_template_name,
+    load_config,
     normalize_tag,
     parse_front_matter,
     to_slug,
@@ -1280,3 +1282,65 @@ class TestBuildStatic:
 
             assert result.exit_code == 0, result.output
             assert Path(output_dir, "static", "js", "timezone.js").exists()
+
+    def test_vendored_js_copied_without_user_static_dir(self, tmp_path):
+        """timezone.js must appear in output even when no user static/ dir exists."""
+        output_dir = tmp_path / "docs"
+        output_dir.mkdir()
+        build_static(str(output_dir))
+        assert (output_dir / "static" / "js" / "timezone.js").exists()
+
+
+# ===========================================================================
+# Unit tests — load_config / SiteConfig
+# ===========================================================================
+
+
+class TestLoadConfig:
+    """Tests for load_config() and SiteConfig defaults."""
+
+    def test_returns_defaults_when_no_config_file(self, tmp_path):
+        cfg = load_config(config_path=tmp_path / "site.toml")
+        assert isinstance(cfg, SiteConfig)
+        assert cfg.title == "My Site"
+        assert cfg.url == "http://localhost"
+        assert cfg.author == ""
+        assert cfg.subtitle == ""
+        assert cfg.templates_dir is None
+        assert cfg.static_dir == "static"
+
+    def test_reads_site_section(self, tmp_path):
+        (tmp_path / "site.toml").write_text(
+            '[site]\ntitle = "Test Blog"\nurl = "https://test.example"\n'
+            'author = "Test Author"\nsubtitle = "a subtitle"\n'
+        )
+        cfg = load_config(config_path=tmp_path / "site.toml")
+        assert cfg.title == "Test Blog"
+        assert cfg.url == "https://test.example"
+        assert cfg.author == "Test Author"
+        assert cfg.subtitle == "a subtitle"
+
+    def test_reads_build_section(self, tmp_path):
+        (tmp_path / "site.toml").write_text(
+            '[build]\ntemplates_dir = "mythemes"\nstatic_dir = "assets"\n'
+        )
+        cfg = load_config(config_path=tmp_path / "site.toml")
+        assert cfg.templates_dir == "mythemes"
+        assert cfg.static_dir == "assets"
+
+    def test_partial_config_uses_defaults_for_missing_keys(self, tmp_path):
+        (tmp_path / "site.toml").write_text('[site]\ntitle = "Partial"\n')
+        cfg = load_config(config_path=tmp_path / "site.toml")
+        assert cfg.title == "Partial"
+        assert cfg.url == "http://localhost"
+        assert cfg.templates_dir is None
+
+    def test_empty_toml_returns_all_defaults(self, tmp_path):
+        (tmp_path / "site.toml").write_text("")
+        cfg = load_config(config_path=tmp_path / "site.toml")
+        assert cfg.title == "My Site"
+
+    def test_templates_dir_none_when_build_section_absent(self, tmp_path):
+        (tmp_path / "site.toml").write_text('[site]\ntitle = "X"\n')
+        cfg = load_config(config_path=tmp_path / "site.toml")
+        assert cfg.templates_dir is None

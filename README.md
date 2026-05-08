@@ -80,6 +80,40 @@ uv run site server # Run preview server
 - **`site new`** — Create a new blog post (interactive)
 - **`site server`** — Run a local preview server on localhost:8000
 
+## Configuration
+
+Create a `site.toml` file in your project root (where you run `site build`) to configure your site:
+
+```toml
+[site]
+title = "My Site"
+url = "https://example.com"
+author = "Your Name"
+subtitle = "a description"
+
+[build]
+templates_dir = "templates"  # optional: directory of custom Jinja2 templates
+static_dir = "static"        # optional: directory of CSS/JS/assets (default: "static")
+```
+
+Both sections are optional — any missing key falls back to a safe default. If `site.toml` doesn't exist at all, the build still works with defaults.
+
+### Custom Templates
+
+Set `templates_dir` to a directory containing your own Jinja2 templates. Templates found there take priority over the built-in ones; any template not present in your directory falls back to the package default. Available template names: `page.html`, `blog.html`, `index.html`, `tags.html`, `content.md`.
+
+### Static Assets
+
+Place your CSS, JavaScript, and other static files in `static_dir` (default: `static/`). During a build they are merged into `{output}/static/`, on top of the vendored package assets (e.g. `timezone.js`). Your files win on any name conflict.
+
+```
+static/
+    css/
+        main.css
+    js/
+        app.js
+```
+
 ## Features
 
 ### Client-Side Timezone Conversion
