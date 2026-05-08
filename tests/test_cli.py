@@ -36,6 +36,7 @@ from sitebuilder.cli import (
     build_static,
     cli,
     get_output_paths,
+    get_template_context,
     get_template_name,
     load_config,
     normalize_tag,
@@ -337,6 +338,33 @@ class TestGetTemplateName:
     def test_default_is_page_html_when_not_provided(self):
         result = get_template_name("/content/pages/about.md", "content")
         assert result == "page.html"
+
+
+# ===========================================================================
+# Unit tests — get_template_context
+# ===========================================================================
+
+
+class TestGetTemplateContext:
+    """get_template_context always returns tags as a list, never None."""
+
+    def test_null_tags_normalized_to_empty_list(self, tmp_path):
+        md_file = tmp_path / "post.md"
+        md_file.write_text("---\ntitle: Test\ntags: null\n---\nContent.\n")
+        ctx = get_template_context(str(md_file))
+        assert ctx["tags"] == []
+
+    def test_missing_tags_normalized_to_empty_list(self, tmp_path):
+        md_file = tmp_path / "post.md"
+        md_file.write_text("---\ntitle: Test\n---\nContent.\n")
+        ctx = get_template_context(str(md_file))
+        assert ctx["tags"] == []
+
+    def test_tags_list_preserved(self, tmp_path):
+        md_file = tmp_path / "post.md"
+        md_file.write_text("---\ntitle: Test\ntags: [python, django]\n---\nContent.\n")
+        ctx = get_template_context(str(md_file))
+        assert ctx["tags"] == ["python", "django"]
 
 
 # ===========================================================================

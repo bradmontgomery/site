@@ -1,5 +1,9 @@
 # 🌐 site
 
+[![Tests](https://github.com/bradmontgomery/site/actions/workflows/test.yml/badge.svg)](https://github.com/bradmontgomery/site/actions/workflows/test.yml)
+[![Coverage](https://codecov.io/gh/bradmontgomery/site/graph/badge.svg)](https://codecov.io/gh/bradmontgomery/site)
+[![Version](https://img.shields.io/github/v/release/bradmontgomery/site)](https://github.com/bradmontgomery/site/releases)
+
 _my very own little static site generator_.
 
 Extracted from [bradmontgomery.github.io](https://github.com/bradmontgomery/bradmontgomery.github.io)

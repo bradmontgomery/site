@@ -160,7 +160,7 @@ def get_template_context(filename):
     md = MarkdownIt().use(front_matter_plugin).enable("table")
     context = parse_front_matter(md.parse(content))
     context["html_content"] = md.render(content)
-    # Add ISO 8601 timestamp for client-side timezone conversion
+    context["tags"] = context.get("tags") or []
     if "date" in context:
         context["date_iso"] = context["date"].isoformat()
     return context
