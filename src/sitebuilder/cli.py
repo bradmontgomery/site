@@ -238,14 +238,14 @@ def build_index(env, output: str, index: list, config: SiteConfig, top: int = 20
 
     context = {
         "title": config.title,
-        "subtitle": "Latest posts...",
+        "subtitle": config.subtitle,
         "posts": index[:top],
     }
     render(env, Path(output), "index.html", context)
 
     context = {
         "title": config.title,
-        "subtitle": f"{config.title}'s Blog. All of it.",
+        "subtitle": config.subtitle,
         "posts": index,
     }
     render(env, Path(output) / Path("blog"), "index.html", context)
@@ -483,6 +483,9 @@ def build(content, output):
 
     for file in find_markdown_files(content):
         context = get_template_context(file)
+        context.setdefault("site_title", config.title)
+        context.setdefault("site_subtitle", config.subtitle)
+        context.setdefault("site_author", config.author)
         template = env.get_template(get_template_name(file, content))
         html_content = template.render(**context)
 
