@@ -35,6 +35,7 @@ from sitebuilder.cli import (
     SiteConfig,
     build_static,
     cli,
+    compute_sparkline_weeks,
     get_output_paths,
     get_template_context,
     get_template_name,
@@ -635,6 +636,60 @@ def _write_page(base: Path, name: str, content: str) -> None:
     pages_dir = base / "pages"
     pages_dir.mkdir(parents=True, exist_ok=True)
     (pages_dir / f"{name}.md").write_text(content)
+
+
+class TestComputeSparklineWeeks:
+    """Unit tests for compute_sparkline_weeks() — the 90-day publishing histogram."""
+
+    def _post(self, dt: datetime.datetime) -> dict:
+        return {"date": dt}
+
+    def test_empty_index_returns_thirteen_zeros(self):
+        result = compute_sparkline_weeks([], today=datetime.date(2026, 5, 24))
+        assert result == [0] * 13
+
+    def test_post_today_lands_in_last_bucket(self):
+        today = datetime.date(2026, 5, 24)
+        posts = [self._post(_utc(2026, 5, 24))]
+        result = compute_sparkline_weeks(posts, today=today)
+        assert result[-1] == 1
+        assert sum(result) == 1
+
+    def test_post_eight_days_ago_lands_in_second_to_last_bucket(self):
+        today = datetime.date(2026, 5, 24)
+        posts = [self._post(_utc(2026, 5, 16))]  # 8 days before today
+        result = compute_sparkline_weeks(posts, today=today)
+        assert result[-2] == 1
+        assert sum(result) == 1
+
+    def test_post_older_than_window_is_not_counted(self):
+        today = datetime.date(2026, 5, 24)
+        # 91 days ago is outside the 13-week (91-day) window
+        old = _utc(2026, 5, 24) - datetime.timedelta(days=91)
+        posts = [self._post(old)]
+        result = compute_sparkline_weeks(posts, today=today)
+        assert result == [0] * 13
+
+    def test_multiple_posts_in_same_week_aggregate(self):
+        today = datetime.date(2026, 5, 24)
+        posts = [
+            self._post(_utc(2026, 5, 24)),
+            self._post(_utc(2026, 5, 23)),
+            self._post(_utc(2026, 5, 20)),
+        ]
+        result = compute_sparkline_weeks(posts, today=today)
+        assert result[-1] == 3
+
+    def test_future_dated_post_is_ignored(self):
+        today = datetime.date(2026, 5, 24)
+        posts = [self._post(_utc(2026, 5, 30))]
+        result = compute_sparkline_weeks(posts, today=today)
+        assert result == [0] * 13
+
+    def test_custom_weeks_count(self):
+        today = datetime.date(2026, 5, 24)
+        result = compute_sparkline_weeks([], today=today, weeks=4)
+        assert result == [0, 0, 0, 0]
 
 
 class TestBuildCommand:
@@ -1355,6 +1410,75 @@ Content.
 
         assert (output_dir / "feed" / "rss" / "rss.xml").exists()
         assert (output_dir / "feed" / "atom" / "atom.xml").exists()
+
+    # ------------------------------------------------------------------
+    # Sparkline rendering
+    # ------------------------------------------------------------------
+
+    def test_index_includes_sparkline_when_recent_posts_exist(self, tmp_path):
+        content_dir = tmp_path / "content"
+        output_dir = tmp_path / "docs"
+
+        recent = (
+            datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=3)
+        ).date().isoformat()
+        _write_blog_post(
+            content_dir,
+            "recent-post",
+            f"""\
+---
+title: Recent Post
+date: {recent}
+url: /blog/recent-post/
+tags: [python]
+description: A recent post
+draft: false
+---
+Body.
+""",
+        )
+
+        runner = CliRunner()
+        with patch(_BUILD_STATIC_PATH):
+            result = runner.invoke(
+                cli,
+                ["build", "--content", str(content_dir), "--output", str(output_dir)],
+            )
+        assert result.exit_code == 0, result.output
+
+        root_index = (output_dir / "index.html").read_text()
+        assert 'class="sparkline"' in root_index
+        assert 'class="sparkline-bar"' in root_index
+
+    def test_index_omits_sparkline_when_no_recent_posts(self, tmp_path):
+        content_dir = tmp_path / "content"
+        output_dir = tmp_path / "docs"
+
+        _write_blog_post(
+            content_dir,
+            "ancient-post",
+            """\
+---
+title: Ancient Post
+date: 2010-01-15
+url: /blog/ancient-post/
+tags: [python]
+description: A very old post
+draft: false
+---
+Body.
+""",
+        )
+
+        runner = CliRunner()
+        with patch(_BUILD_STATIC_PATH):
+            runner.invoke(
+                cli,
+                ["build", "--content", str(content_dir), "--output", str(output_dir)],
+            )
+
+        root_index = (output_dir / "index.html").read_text()
+        assert 'class="sparkline"' not in root_index
 
 
 # ===========================================================================
