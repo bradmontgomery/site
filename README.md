@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/bradmontgomery/site/actions/workflows/test.yml/badge.svg)](https://github.com/bradmontgomery/site/actions/workflows/test.yml)
 [![Coverage](https://codecov.io/gh/bradmontgomery/site/graph/badge.svg)](https://codecov.io/gh/bradmontgomery/site)
-[![Version](https://img.shields.io/github/v/release/bradmontgomery/site)](https://github.com/bradmontgomery/site/releases)
+[![Version](https://img.shields.io/github/v/tag/bradmontgomery/site?label=version&sort=semver)](https://github.com/bradmontgomery/site/tags)
 
 _my very own little static site generator_.
 
@@ -51,8 +51,12 @@ uvx --from git+https://github.com/bradmontgomery/site site init
 # Build the site
 uvx --from git+https://github.com/bradmontgomery/site site build
 
-# Create a new post
+# Create a new post (interactive — prompts for date, title, tags, description, draft)
 uvx --from git+https://github.com/bradmontgomery/site site new
+
+# Or pass everything as flags to skip the prompts
+uvx --from git+https://github.com/bradmontgomery/site site new \
+  --title "My Post" --tags "python,web" --description "A quick note." --no-draft
 
 # Run local preview server
 uvx --from git+https://github.com/bradmontgomery/site site server
@@ -81,7 +85,7 @@ uv run site server # Run preview server
 
 - **`site init`** — Initialize a new site structure (creates content/, templates/, and output/ directories)
 - **`site build`** — Build the static site from content/
-- **`site new`** — Create a new blog post (interactive)
+- **`site new`** — Create a new blog post. Pass `--date`, `--title`, `--tags`, `--description`, `--draft`/`--no-draft` for non-interactive use; any option you omit falls back to a prompt.
 - **`site server`** — Run a local preview server on localhost:8000
 
 ## Configuration

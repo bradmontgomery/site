@@ -511,6 +511,111 @@ class TestInitCommand:
 
 
 # ===========================================================================
+# Integration tests — `new` command
+# ===========================================================================
+
+
+class TestNewCommand:
+    """Integration tests for the `site new` CLI command."""
+
+    def test_creates_post_from_flags_without_prompting(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            result = runner.invoke(
+                cli,
+                [
+                    "new",
+                    "--date", "2026-05-24",
+                    "--title", "Why I switched to uv",
+                    "--tags", "python, tooling",
+                    "--description", "A quick note.",
+                    "--no-draft",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            post = Path(tmpdir, "content", "blog", "why-i-switched-to-uv", "index.md")
+            assert post.exists()
+            body = post.read_text()
+            assert "Why I switched to uv" in body
+            assert "python" in body and "tooling" in body
+
+    def test_flags_skip_all_prompts(self):
+        """When every flag is supplied, the command must not read stdin."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Empty stdin would hang input() if any prompt fired.
+            result = runner.invoke(
+                cli,
+                [
+                    "new",
+                    "--date", "2026-05-24",
+                    "--title", "Flagged",
+                    "--tags", "",
+                    "--description", "",
+                    "--no-draft",
+                ],
+                input="",
+            )
+            assert result.exit_code == 0, result.output
+
+    def test_blank_date_flag_uses_now(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            result = runner.invoke(
+                cli,
+                [
+                    "new",
+                    "--date", "",
+                    "--title", "Today",
+                    "--tags", "",
+                    "--description", "",
+                    "--no-draft",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            assert Path(tmpdir, "content", "blog", "today", "index.md").exists()
+
+    def test_interactive_fallback_when_no_flags(self):
+        """Legacy interactive flow: 5 newline-separated stdin lines."""
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            stdin = "2026-05-24\nInteractive Post\npython\nDesc\nfalse\n"
+            result = runner.invoke(cli, ["new"], input=stdin)
+            assert result.exit_code == 0, result.output
+            assert Path(tmpdir, "content", "blog", "interactive-post", "index.md").exists()
+
+    def test_draft_flag_marks_post_as_draft(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            result = runner.invoke(
+                cli,
+                [
+                    "new",
+                    "--date", "2026-05-24",
+                    "--title", "Draft Post",
+                    "--tags", "",
+                    "--description", "",
+                    "--draft",
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            body = Path(tmpdir, "content", "blog", "draft-post", "index.md").read_text()
+            assert "true" in body.lower()  # draft: true in frontmatter
+
+    def test_partial_flags_prompt_for_remainder(self):
+        """If only --title is given, remaining values come from stdin."""
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            # 4 lines: date, tags, description, draft (title supplied via flag)
+            stdin = "2026-05-24\npython\nA desc\nfalse\n"
+            result = runner.invoke(
+                cli, ["new", "--title", "Mixed"], input=stdin,
+            )
+            assert result.exit_code == 0, result.output
+            assert Path(tmpdir, "content", "blog", "mixed", "index.md").exists()
+
+
+# ===========================================================================
 # Integration tests — `build` command
 # ===========================================================================
 

@@ -252,8 +252,13 @@
             <div class="command-title"><span class="prompt">$</span> Build the site</div>
             <div class="code-block"><code>uvx --from git+https://github.com/bradmontgomery/site site build</code></div>
 
-            <div class="command-title"><span class="prompt">$</span> Create a new post</div>
+            <div class="command-title"><span class="prompt">$</span> Create a new post (interactive)</div>
             <div class="code-block"><code>uvx --from git+https://github.com/bradmontgomery/site site new</code></div>
+
+            <div class="command-title"><span class="prompt">$</span> Or pass flags to skip the prompts</div>
+            <div class="code-block"><code>uvx --from git+https://github.com/bradmontgomery/site site new \
+  --title "My Post" --tags "python,web" \
+  --description "A quick note." --no-draft</code></div>
 
             <div class="command-title"><span class="prompt">$</span> Run local preview server</div>
             <div class="code-block"><code>uvx --from git+https://github.com/bradmontgomery/site site server</code></div>
@@ -303,7 +308,7 @@
             <div class="command-desc">Build the static site from content/</div>
 
             <div class="command-title"><span class="highlight-cyan">site new</span></div>
-            <div class="command-desc">Create a new blog post (interactive)</div>
+            <div class="command-desc">Create a new blog post. Accepts <span class="inline-code">--date</span>, <span class="inline-code">--title</span>, <span class="inline-code">--tags</span>, <span class="inline-code">--description</span>, and <span class="inline-code">--draft</span>/<span class="inline-code">--no-draft</span>; any flag you omit is prompted for interactively.</div>
 
             <div class="command-title"><span class="highlight-cyan">site server</span></div>
             <div class="command-desc">Run a local preview server on localhost:8000</div>

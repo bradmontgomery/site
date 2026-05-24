@@ -435,38 +435,49 @@ def server(output, addr, port):
 
 
 @cli.command()
-def new():
-    """Create a new blog post."""
+@click.option("--date", default=None, help="Post date; blank or omitted = now.")
+@click.option("--title", default=None, help="Post title.")
+@click.option("--tags", default=None, help="Comma-separated tags.")
+@click.option("--description", default=None, help="Post description.")
+@click.option("--draft/--no-draft", "draft", default=None, help="Mark post as draft.")
+def new(date, title, tags, description, draft):
+    """Create a new blog post.
+
+    Any option not supplied is prompted for interactively, so the legacy
+    `site new` flow still works when called with no arguments.
+    """
     config = load_config()
     env = get_jinja_env(config)
 
-    prompts = [
-        ("date", "Date (default is now): "),
-        ("title", "Title: "),
-        ("tags", "Tags (comma-separated): "),
-        ("description", "Description: "),
-        ("draft", "Draft (false): "),
-    ]
-    context = {}
-    for key, prompt in prompts:
-        context[key] = input(prompt)
-        if key == "title":
-            context["slug"] = to_slug(context[key])
-        elif key == "date":
-            context[key] = (
-                arrow.utcnow().datetime
-                if not context[key]
-                else arrow.get(context[key]).datetime
-            )
-        elif key == "draft":
-            context[key] = True if context[key] == "true" else False
-        elif key == "tags":
-            context[key] = [normalize_tag(tag) for tag in context[key].split(",")]
+    if date is None:
+        date = input("Date (default is now): ")
+    if title is None:
+        title = input("Title: ")
+    if tags is None:
+        tags = input("Tags (comma-separated): ")
+    if description is None:
+        description = input("Description: ")
+    if draft is None:
+        draft = input("Draft (false): ") == "true"
 
-    context["url"] = f"/blog/{context['slug']}/"
-    datestring = context["date"].strftime("%Y/%m/%d")
-    context["alias"] = f"/blog/{datestring}/{context['slug']}/"
-    render(env, f"content/blog/{context['slug']}", "content.md", context)
+    parsed_date = (
+        arrow.utcnow().datetime if not date else arrow.get(date).datetime
+    )
+    tag_list = [normalize_tag(t) for t in tags.split(",") if t.strip()] if tags else []
+    slug = to_slug(title)
+    datestring = parsed_date.strftime("%Y/%m/%d")
+
+    context = {
+        "date": parsed_date,
+        "title": title,
+        "slug": slug,
+        "tags": tag_list,
+        "description": description,
+        "draft": draft,
+        "url": f"/blog/{slug}/",
+        "alias": f"/blog/{datestring}/{slug}/",
+    }
+    render(env, f"content/blog/{slug}", "content.md", context)
 
 
 @cli.command()
