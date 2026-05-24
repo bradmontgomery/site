@@ -143,6 +143,43 @@ Use the Jinja macro for consistent markup:
 If JavaScript is disabled, readers see the UTC fallback text rendered by the
 server. RSS/Atom feeds are unaffected and continue to use UTC.
 
+### Publishing Cadence Sparkline
+
+A small inline-SVG sparkline shows blog post counts per week over the last 90
+days (13 weekly buckets). Bar height encodes the number of posts published in
+that 7-day window; weeks with zero posts render no bar. The graphic is
+non-interactive — purely a visual indicator of how often you publish.
+
+The default `index.html` includes it inside the page `<header>`, just below the
+subtitle. Users with their own templates can opt in by adding:
+
+```jinja2
+{% include "_sparkline.html" %}
+```
+
+If there are no posts within the last 90 days the partial renders nothing, so
+it's safe to include unconditionally.
+
+#### Styling
+
+The partial ships with minimal default styling and exposes two CSS hooks so you
+can fully restyle it from your own stylesheet:
+
+| Selector          | Purpose                                      |
+|-------------------|----------------------------------------------|
+| `.sparkline`      | The `<svg>` container — `width`, `height`, `color` |
+| `.sparkline-bar`  | Each `<rect>` bar — `fill`, `opacity`        |
+
+Example overrides:
+
+```css
+.sparkline { width: 200px; height: 28px; color: #2a7ae2; }
+.sparkline-bar { fill: currentColor; opacity: 1; }
+```
+
+For deeper customization, drop your own `_sparkline.html` into your
+`templates_dir`; it wins over the package template via Jinja's `ChoiceLoader`.
+
 ## Built with
 
 - [jinja](https://jinja.palletsprojects.com/)

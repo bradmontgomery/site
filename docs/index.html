@@ -356,6 +356,25 @@
                 If JavaScript is disabled, readers see the UTC fallback text rendered by the
                 server. RSS/Atom feeds are unaffected and continue to use UTC.
             </p>
+
+            <div class="command-title" style="margin-top: 25px;"><span class="highlight-cyan">Publishing Cadence Sparkline</span></div>
+            <p style="margin-bottom: 15px; color: #a0afc0;">
+                A small inline-SVG sparkline showing blog post counts per week over the last
+                90 days (13 weekly buckets). Bar height encodes posts published in that 7-day
+                window; weeks with zero posts render no bar. Purely visual — no interactivity.
+            </p>
+            <p style="margin-bottom: 15px; color: #a0afc0;">
+                The default <span class="inline-code">index.html</span> includes it in the
+                page header. Custom templates can opt in by including the partial:
+            </p>
+            <div class="code-block"><code>{% include "_sparkline.html" %}</code></div>
+            <p style="margin-top: 15px; color: #a0afc0;">
+                Two CSS hooks let you restyle it from your own stylesheet:
+                <span class="inline-code">.sparkline</span> targets the
+                <span class="inline-code">&lt;svg&gt;</span> container (size, color), and
+                <span class="inline-code">.sparkline-bar</span> targets each
+                <span class="inline-code">&lt;rect&gt;</span> bar (fill, opacity).
+            </p>
         </section>
 
         <section>

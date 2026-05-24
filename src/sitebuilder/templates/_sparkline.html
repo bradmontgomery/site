@@ -1,0 +1,32 @@
+{# Renders a 90-day weekly sparkline.
+
+   Expects in context:
+     sparkline_weeks: list[int]  -- post counts per week, oldest first
+     sparkline_max:   int        -- max value across the list
+
+   CSS hooks for end-user overrides:
+     .sparkline      -- the <svg> element
+     .sparkline-bar  -- each <rect> bar
+#}
+{% if sparkline_weeks and sparkline_max and sparkline_max > 0 %}
+<style>
+  .sparkline { display: inline-block; width: 130px; height: 20px; vertical-align: middle; }
+  .sparkline-bar { fill: currentColor; opacity: 0.6; }
+</style>
+<svg class="sparkline"
+     viewBox="0 0 {{ sparkline_weeks|length * 8 }} 20"
+     role="img"
+     aria-label="Posts per week over the last 90 days"
+     preserveAspectRatio="none">
+  {% for count in sparkline_weeks %}
+    {% if count > 0 %}
+      {% set h = (count / sparkline_max * 18)|round(2) %}
+      <rect class="sparkline-bar"
+            x="{{ loop.index0 * 8 }}"
+            y="{{ 20 - h }}"
+            width="6"
+            height="{{ h }}"></rect>
+    {% endif %}
+  {% endfor %}
+</svg>
+{% endif %}

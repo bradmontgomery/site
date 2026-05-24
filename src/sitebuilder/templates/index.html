@@ -9,6 +9,7 @@
     <header>
         <h1>{{ title }}</h1>
         {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+        {% include "_sparkline.html" ignore missing %}
     </header>
 
     <main>

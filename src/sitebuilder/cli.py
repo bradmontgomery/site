@@ -14,6 +14,7 @@ import tomllib
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date as date_cls, datetime, timezone
 from glob import glob
 from itertools import chain
 from pathlib import Path
@@ -232,14 +233,43 @@ def render(env, dest_dir, template_name, context):
         logger.info("Wrote %s", dest_file)
 
 
+def compute_sparkline_weeks(
+    index: list, today: date_cls | None = None, weeks: int = 13
+) -> list[int]:
+    """Return a list of post counts per week over the last `weeks` weeks.
+
+    Oldest week first; the final element covers the 7 days ending on `today`.
+    """
+    if today is None:
+        today = datetime.now(timezone.utc).date()
+    buckets = [0] * weeks
+    span_days = weeks * 7
+    for post in index:
+        post_date = post.get("date")
+        if post_date is None:
+            continue
+        if hasattr(post_date, "date"):
+            post_date = post_date.date()
+        days_ago = (today - post_date).days
+        if days_ago < 0 or days_ago >= span_days:
+            continue
+        bucket = (weeks - 1) - days_ago // 7
+        buckets[bucket] += 1
+    return buckets
+
+
 def build_index(env, output: str, index: list, config: SiteConfig, top: int = 20):
     """Build index page with latest articles."""
     index = sorted(index, key=lambda d: d["date"], reverse=True)
+    sparkline_weeks = compute_sparkline_weeks(index)
+    sparkline_max = max(sparkline_weeks) if sparkline_weeks else 0
 
     context = {
         "title": config.title,
         "subtitle": config.subtitle,
         "posts": index[:top],
+        "sparkline_weeks": sparkline_weeks,
+        "sparkline_max": sparkline_max,
     }
     render(env, Path(output), "index.html", context)
 
@@ -247,6 +277,8 @@ def build_index(env, output: str, index: list, config: SiteConfig, top: int = 20
         "title": config.title,
         "subtitle": config.subtitle,
         "posts": index,
+        "sparkline_weeks": sparkline_weeks,
+        "sparkline_max": sparkline_max,
     }
     render(env, Path(output) / Path("blog"), "index.html", context)
 
