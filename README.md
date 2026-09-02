@@ -108,7 +108,25 @@ Both sections are optional — any missing key falls back to a safe default. If 
 
 ### Custom Templates
 
-Set `templates_dir` to a directory containing your own Jinja2 templates. Templates found there take priority over the built-in ones; any template not present in your directory falls back to the package default. Available template names: `page.html`, `blog.html`, `index.html`, `tags.html`, `content.md`.
+Set `templates_dir` to a directory containing your own Jinja2 templates. Templates found there take priority over the built-in ones; any template not present in your directory falls back to the package default. Available template names: `base.html`, `page.html`, `blog.html`, `index.html`, `tags.html`, `_sparkline.html`, `macros/dates.html`, `content.md`.
+
+#### Template Inheritance
+
+Every shipped page template extends `base.html`, which holds the one HTML
+skeleton and exposes these blocks:
+
+| Block                 | Contains                                              |
+|-----------------------|-------------------------------------------------------|
+| `title`               | The `<title>` text (defaults to `{{ title }}`)         |
+| `head`                | Empty — your stylesheets and meta tags go here         |
+| `header`              | Wraps `page_header`                                    |
+| `content`             | Wraps `page_content`                                   |
+| `footer`              | Empty                                                  |
+| `scripts`             | The `timezone.js` `<script>` tag                       |
+
+`header` and `content` are deliberately thin wrappers. The shipped templates
+fill the inner `page_header` and `page_content` blocks instead, which leaves the
+outer pair free for a [tag theme](#tag-themes) to replace wholesale.
 
 ### Static Assets
 
@@ -179,6 +197,64 @@ Example overrides:
 
 For deeper customization, drop your own `_sparkline.html` into your
 `templates_dir`; it wins over the package template via Jinja's `ChoiceLoader`.
+
+### Tag Themes
+
+Any tag archive page (`/blog/tags/<tag>/`) can get its own look. Drop a template
+named `base_<tag>.html` into your `templates_dir` and it becomes the Jinja
+**parent** for that tag's list page. If the file isn't there, the page renders
+exactly as it does today — the convention is entirely opt-in, one tag at a time.
+
+The filename uses the *normalized* tag: lowercased, non-word characters removed,
+runs of spaces and dashes collapsed to a single `-` (the same `normalize_tag()`
+rule that builds the URL). So a tag written `Home Cooking` in front matter lives
+at `/blog/tags/home-cooking/` and is themed by `base_home-cooking.html`.
+
+Your theme extends `base.html` and overrides the outer blocks. Anything you
+leave out falls through to the shipped markup:
+
+```jinja2
+{# templates/base_food.html #}
+{% extends "base.html" %}
+
+{% block head %}
+    <link rel="stylesheet" href="/static/css/food.css">
+{% endblock %}
+
+{% block header %}
+    <header class="food-theme">
+        <h1>🍜 {{ tag }}</h1>
+        <p>{{ posts|length }} recipes</p>
+    </header>
+{% endblock %}
+```
+
+That replaces the page header and adds a stylesheet, while the post list itself
+is still rendered by the shipped `index.html`. Override `content` too if you want
+to replace the list markup as well.
+
+Tag list pages receive:
+
+| Variable   | Value                                                   |
+|------------|---------------------------------------------------------|
+| `tag`      | The normalized tag, e.g. `food`                          |
+| `posts`    | That tag's posts, newest first                           |
+| `title`    | Your site title from `site.toml`                         |
+| `subtitle` | `"Tagged <tag>"`                                         |
+
+Only the per-tag archive pages are themable. The tag index at `/blog/tags/`
+always renders from `tags.html`.
+
+> **Using your own `index.html`?** A custom `index.html` in your `templates_dir`
+> wins over the package one, so it keeps working — but tag themes won't reach it
+> until it opts in. To convert it:
+>
+> 1. Make the first line `{% extends base_template|default("base.html", true) %}`.
+> 2. **Delete its own `<!DOCTYPE>`, `<html>`, `<head>` and `<body>` tags** —
+>    `base.html` supplies the skeleton now, and leaving them in produces a
+>    doubled document.
+> 3. Move what's left into `{% block page_header %}` and `{% block page_content %}`,
+>    putting any stylesheet or meta tags into `{% block head %}`.
 
 ## Built with
 

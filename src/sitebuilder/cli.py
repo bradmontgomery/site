@@ -106,6 +106,18 @@ def get_jinja_env(config: SiteConfig | None = None) -> Environment:
     return Environment(loader=loader, autoescape=select_autoescape())
 
 
+def tag_base_template(env, tag: str, default: str = "base.html") -> str:
+    """Return the base template name for a tag's archive page.
+
+    Uses ``base_<tag>.html`` when a template by that name exists in the Jinja
+    environment (user ``templates_dir`` first, package templates as fallback);
+    otherwise returns ``default``.
+    """
+    if not tag:
+        return default
+    return env.select_template([f"base_{tag}.html", default]).name
+
+
 def find_markdown_files(parent: str) -> list:
     """Return a list of all .md files in the given parent directory."""
     files = list(glob(f"{parent}/**/*.md", recursive=True))
@@ -328,7 +340,9 @@ def build_tags(env, output: str, index: list, config: SiteConfig) -> None:
         context = {
             "title": config.title,
             "subtitle": f"Tagged {tag}",
+            "tag": tag,
             "posts": posts,
+            "base_template": tag_base_template(env, tag),
         }
         render(env, f"{output}/blog/tags/{tag}", "index.html", context)
 
