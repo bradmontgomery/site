@@ -202,13 +202,29 @@ For deeper customization, drop your own `_sparkline.html` into your
 
 Any tag archive page (`/blog/tags/<tag>/`) can get its own look. Drop a template
 named `base_<tag>.html` into your `templates_dir` and it becomes the Jinja
-**parent** for that tag's list page. If the file isn't there, the page renders
-exactly as it does today — the convention is entirely opt-in, one tag at a time.
+**parent** for that tag's list page. The convention is opt-in, one tag at a time:
+without a matching file the tag page renders from the default `base.html`.
 
-The filename uses the *normalized* tag: lowercased, non-word characters removed,
-runs of spaces and dashes collapsed to a single `-` (the same `normalize_tag()`
-rule that builds the URL). So a tag written `Home Cooking` in front matter lives
-at `/blog/tags/home-cooking/` and is themed by `base_home-cooking.html`.
+> **Note:** the shipped templates now share a common `base.html` skeleton. Output is
+> functionally the same, but not byte-identical to earlier versions — for example the
+> tag index (`tags.html`) now loads `timezone.js`, and some whitespace and HTML
+> comments changed.
+
+The filename uses the *normalized* tag — the same `normalize_tag()` rule that builds
+the URL: the tag is ASCII-folded (accents dropped, non-ASCII characters removed),
+lowercased, stripped of non-word characters, has runs of spaces and dashes collapsed
+to a single `-`, and has leading/trailing `-` and `_` removed. Underscores inside a
+tag are kept.
+
+| Tag in front matter | URL                      | Theme file                |
+|---------------------|--------------------------|---------------------------|
+| `food`              | `/blog/tags/food/`       | `base_food.html`          |
+| `Home Cooking`      | `/blog/tags/home-cooking/` | `base_home-cooking.html` |
+| `Café`              | `/blog/tags/cafe/`       | `base_cafe.html`          |
+
+A tag made only of non-ASCII characters (e.g. `日本語`) normalizes to an empty string
+and can't be themed. Filenames are matched exactly, so use the lowercase,
+normalized form.
 
 Your theme extends `base.html` and overrides the outer blocks. Anything you
 leave out falls through to the shipped markup:
@@ -233,6 +249,23 @@ That replaces the page header and adds a stylesheet, while the post list itself
 is still rendered by the shipped `index.html`. Override `content` too if you want
 to replace the list markup as well.
 
+`base.html` exposes two layers of blocks. The **outer** blocks (`title`, `head`,
+`header`, `content`, `footer`, `scripts`) are for themes; the **inner** blocks
+(`page_header`, `page_content`) are what the shipped page templates fill. Because a
+theme overrides the outer layer, it always wins. Overriding `header` replaces
+everything inside it, including the subtitle and sparkline; call `{{ super() }}`
+to keep the default and add to it:
+
+```jinja2
+{% block header %}
+    <div class="food-banner">🍜</div>
+    {{ super() }}
+{% endblock %}
+```
+
+Overriding `page_header`/`page_content` in a theme will *not* work, since
+`index.html` fills those itself.
+
 Tag list pages receive:
 
 | Variable   | Value                                                   |
@@ -255,6 +288,18 @@ always renders from `tags.html`.
 >    doubled document.
 > 3. Move what's left into `{% block page_header %}` and `{% block page_content %}`,
 >    putting any stylesheet or meta tags into `{% block head %}`.
+
+#### Build warnings
+
+Existing sites keep building unchanged. If your `templates_dir` contains something that
+interacts with tag themes, the build logs a warning (it never fails the build):
+
+| Warning mentions | Meaning |
+|------------------|---------|
+| `base.html shadows the shipped base.html and defines no 'page_content' block` | Your own `base.html` wins over the shipped one, so shipped templates you haven't overridden render without content. Add `page_header`/`page_content` blocks, or rename the file. |
+| `... exists for tag 'x', but your index.html doesn't extend it` | You have both `base_x.html` and a custom full-document `index.html`; the theme isn't applied until `index.html` is converted (steps above). |
+| `base_X.html will never be used as a tag theme` | The filename isn't in normalized form (case, accents, spaces); the message suggests the right name. |
+| `base_x.html is used as the theme for tag 'x' but doesn't extend base.html` | A `base_<word>.html` file you wrote for another purpose matches a tag name and is being used as its parent. Rename it or make it extend `base.html`. |
 
 ## Built with
 

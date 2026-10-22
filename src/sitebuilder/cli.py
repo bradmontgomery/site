@@ -23,7 +23,16 @@ from time import time
 import arrow
 import rich_click as click
 from feedgen.feed import FeedGenerator
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader, select_autoescape
+from jinja2 import (
+    ChoiceLoader,
+    Environment,
+    FileSystemLoader,
+    PackageLoader,
+    TemplateNotFound,
+    TemplateSyntaxError,
+    nodes,
+    select_autoescape,
+)
 from markdown_it import MarkdownIt
 from mdit_py_plugins.front_matter import front_matter_plugin
 from rich.console import Console
@@ -94,28 +103,102 @@ def to_slug(value: str) -> str:
 def get_jinja_env(config: SiteConfig | None = None) -> Environment:
     """Create and return a configured Jinja2 environment."""
     package_loader = PackageLoader("sitebuilder")
+    user_dir = None
     if config and config.templates_dir:
         user_dir = Path(config.templates_dir)
         if user_dir.is_dir():
             loader = ChoiceLoader([FileSystemLoader(str(user_dir)), package_loader])
         else:
             logger.warning("templates_dir %r not found; using package templates", config.templates_dir)
+            user_dir = None
             loader = package_loader
     else:
         loader = package_loader
-    return Environment(loader=loader, autoescape=select_autoescape())
+    env = Environment(loader=loader, autoescape=select_autoescape())
+    if user_dir:
+        warn_if_base_shadowed(env, user_dir)
+    return env
 
 
-def tag_base_template(env, tag: str, default: str = "base.html") -> str:
+DEFAULT_BASE_TEMPLATE = "base.html"
+
+
+def tag_base_template(env: Environment, tag: str) -> str:
     """Return the base template name for a tag's archive page.
 
     Uses ``base_<tag>.html`` when a template by that name exists in the Jinja
     environment (user ``templates_dir`` first, package templates as fallback);
-    otherwise returns ``default``.
+    otherwise returns ``base.html``.
     """
-    if not tag:
-        return default
-    return env.select_template([f"base_{tag}.html", default]).name
+    return env.select_template([f"base_{tag}.html", DEFAULT_BASE_TEMPLATE]).name
+
+
+def _parse_template(env: Environment, name: str):
+    """Return the Jinja AST for a template, or None if it can't be loaded/parsed."""
+    try:
+        source = env.loader.get_source(env, name)[0]
+        return env.parse(source)
+    except (TemplateNotFound, TemplateSyntaxError):
+        return None
+
+
+def warn_if_base_shadowed(env: Environment, user_dir: Path) -> None:
+    """Warn when a user's base.html shadows the shipped skeleton without its blocks."""
+    if not (user_dir / DEFAULT_BASE_TEMPLATE).is_file():
+        return
+    tree = _parse_template(env, DEFAULT_BASE_TEMPLATE)
+    if tree is None:
+        return
+    if "page_content" not in {b.name for b in tree.find_all(nodes.Block)}:
+        logger.warning(
+            "%s/base.html shadows the shipped base.html and defines no 'page_content' "
+            "block, so shipped templates you haven't overridden (page, blog, tags, index) "
+            "will render without their content. Define 'page_header'/'page_content' "
+            "blocks or rename the file; see 'Tag Themes' in the README.",
+            user_dir,
+        )
+
+
+def warn_if_index_ignores_theme(env: Environment, tag: str, base_name: str) -> None:
+    """Warn when a tag theme exists but index.html doesn't extend it."""
+    if base_name == DEFAULT_BASE_TEMPLATE:
+        return
+    tree = _parse_template(env, "index.html")
+    if tree is not None and tree.find(nodes.Extends) is None:
+        logger.warning(
+            "%s exists for tag %r, but your index.html doesn't extend it, so the theme "
+            "is not applied. Start index.html with "
+            "{%% extends base_template|default(\"base.html\", true) %%}; see 'Tag Themes' "
+            "in the README.",
+            base_name,
+            tag,
+        )
+
+
+def warn_on_suspect_theme_files(env: Environment, config: SiteConfig, tags) -> None:
+    """Warn about base_*.html files that look like tag themes but won't work as one."""
+    if not config.templates_dir:
+        return
+    user_dir = Path(config.templates_dir)
+    for path in sorted(user_dir.glob("base_*.html")):
+        word = path.stem[len("base_"):]
+        if normalize_tag(word) != word:
+            logger.warning(
+                "%s will never be used as a tag theme: tag names are normalized "
+                "(lowercase, ASCII). Did you mean base_%s.html?",
+                path.name,
+                normalize_tag(word) or "<tag>",
+            )
+            continue
+        if word in tags:
+            tree = _parse_template(env, path.name)
+            if tree is not None and tree.find(nodes.Extends) is None:
+                logger.warning(
+                    "%s is used as the theme for tag %r but doesn't extend base.html, "
+                    "so the tag's post list may not render.",
+                    path.name,
+                    word,
+                )
 
 
 def find_markdown_files(parent: str) -> list:
@@ -335,14 +418,18 @@ def build_tags(env, output: str, index: list, config: SiteConfig) -> None:
             tag = normalize_tag(tag)
             by_tags[tag].append(post)
 
+    warn_on_suspect_theme_files(env, config, by_tags)
+
     for tag, posts in by_tags.items():
         posts = sorted(posts, key=lambda d: d["date"], reverse=True)
+        base_template = tag_base_template(env, tag)
+        warn_if_index_ignores_theme(env, tag, base_template)
         context = {
             "title": config.title,
             "subtitle": f"Tagged {tag}",
             "tag": tag,
             "posts": posts,
-            "base_template": tag_base_template(env, tag),
+            "base_template": base_template,
         }
         render(env, f"{output}/blog/tags/{tag}", "index.html", context)
 

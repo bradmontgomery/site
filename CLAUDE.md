@@ -18,6 +18,7 @@ uv run site server                 # preview at localhost:8000
 - `get_jinja_env(config)` uses `ChoiceLoader` when `templates_dir` is set — user templates win, package templates are fallback
 - all shipped page templates extend `base.html`; they fill the inner `page_header`/`page_content` blocks, leaving the outer `header`/`content` free for themes to replace
 - `tag_base_template(env, tag)` resolves `base_<tag>.html` (falling back to `base.html`) and is passed to the tag list page as `base_template`; `index.html` does `{% extends base_template|default("base.html", true) %}`
+- `get_jinja_env`/`build_tags` log (never fail) warnings when a user `base.html` lacks `page_content`, a custom `index.html` doesn't extend `base_template`, or a `base_*.html` file is misnamed/standalone — existing sites must keep building
 - `load_config()` returns `SiteConfig()` defaults when no `site.toml` exists (fully backward compatible)
 - `build_feeds()` requires a non-empty subtitle; falls back to `config.title` if subtitle is blank
 
