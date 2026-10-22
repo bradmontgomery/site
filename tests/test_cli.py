@@ -36,12 +36,14 @@ from sitebuilder.cli import (
     build_static,
     cli,
     compute_sparkline_weeks,
+    get_jinja_env,
     get_output_paths,
     get_template_context,
     get_template_name,
     load_config,
     normalize_tag,
     parse_front_matter,
+    tag_base_template,
     to_slug,
     validate_post,
 )
@@ -1601,3 +1603,343 @@ class TestLoadConfig:
         (tmp_path / "site.toml").write_text('[site]\ntitle = "X"\n')
         cfg = load_config(config_path=tmp_path / "site.toml")
         assert cfg.templates_dir is None
+
+
+class TestTagBaseTemplate:
+    """Unit tests for resolving a tag's base template name."""
+
+    def test_falls_back_to_base_html_with_package_templates_only(self):
+        env = get_jinja_env(SiteConfig())
+        assert tag_base_template(env, "food") == "base.html"
+
+    def test_uses_theme_when_present_in_templates_dir(self, tmp_path, monkeypatch):
+        templates = tmp_path / "templates"
+        templates.mkdir()
+        (templates / "base_food.html").write_text('{% extends "base.html" %}')
+
+        monkeypatch.chdir(tmp_path)
+        env = get_jinja_env(SiteConfig(templates_dir="templates"))
+
+        assert tag_base_template(env, "food") == "base_food.html"
+
+    def test_other_tags_still_fall_back_when_a_theme_exists(self, tmp_path, monkeypatch):
+        templates = tmp_path / "templates"
+        templates.mkdir()
+        (templates / "base_food.html").write_text('{% extends "base.html" %}')
+
+        monkeypatch.chdir(tmp_path)
+        env = get_jinja_env(SiteConfig(templates_dir="templates"))
+
+        assert tag_base_template(env, "python") == "base.html"
+
+    def test_empty_tag_falls_back_to_base_html(self):
+        env = get_jinja_env(SiteConfig())
+        assert tag_base_template(env, "") == "base.html"
+
+    def test_multi_word_tag_resolves_normalized_filename(self, tmp_path, monkeypatch):
+        templates = tmp_path / "templates"
+        templates.mkdir()
+        (templates / "base_home-cooking.html").write_text('{% extends "base.html" %}')
+
+        monkeypatch.chdir(tmp_path)
+        env = get_jinja_env(SiteConfig(templates_dir="templates"))
+
+        assert tag_base_template(env, normalize_tag("Home Cooking")) == (
+            "base_home-cooking.html"
+        )
+
+
+class TestTagThemes:
+    """End-to-end tests for the base_<tag>.html convention.
+
+    These use isolated_filesystem() rather than tmp_path because `build` reads
+    site.toml and resolves templates_dir relative to the current directory.
+    """
+
+    _SITE_TOML = '[site]\ntitle = "Test Site"\n\n[build]\ntemplates_dir = "templates"\n'
+
+    _THEME = (
+        '{% extends "base.html" %}\n'
+        "{% block header %}<header class=\"food-theme\">THEMED-{{ tag }}</header>"
+        "{% endblock %}\n"
+    )
+
+    def _write_posts(self, content_dir: Path) -> None:
+        _write_blog_post(
+            content_dir,
+            "food-post",
+            """\
+---
+title: Ramen Notes
+date: 2024-01-15
+url: /blog/ramen-notes/
+tags: [food]
+description: noodles
+draft: false
+---
+Slurp.
+""",
+        )
+        _write_blog_post(
+            content_dir,
+            "python-post",
+            """\
+---
+title: Python Post
+date: 2024-02-01
+url: /blog/python-post/
+tags: [python]
+description: code
+draft: false
+---
+Code.
+""",
+        )
+
+    def _build(
+        self, tmpdir: str, theme: str | None, extra: dict[str, str] | None = None
+    ) -> Path:
+        root = Path(tmpdir)
+        (root / "site.toml").write_text(self._SITE_TOML)
+        templates = root / "templates"
+        templates.mkdir()
+        if theme is not None:
+            (templates / "base_food.html").write_text(theme)
+        for name, text in (extra or {}).items():
+            (templates / name).write_text(text)
+        self._write_posts(root / "content")
+
+        runner = CliRunner()
+        with patch(_BUILD_STATIC_PATH):
+            result = runner.invoke(cli, ["build"])
+        assert result.exit_code == 0, result.output
+        return root / "docs"
+
+    def test_theme_replaces_header_on_matching_tag(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, self._THEME)
+            html = (output / "blog" / "tags" / "food" / "index.html").read_text()
+
+        assert 'class="food-theme"' in html
+        assert "THEMED-food" in html
+
+    def test_theme_still_inherits_the_shipped_post_list(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, self._THEME)
+            html = (output / "blog" / "tags" / "food" / "index.html").read_text()
+
+        assert "Ramen Notes" in html
+        assert "/blog/ramen-notes/" in html
+
+    def test_theme_does_not_leak_to_other_tags(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, self._THEME)
+            html = (output / "blog" / "tags" / "python" / "index.html").read_text()
+
+        assert "THEMED" not in html
+        assert "Python Post" in html
+
+    def test_theme_can_add_head_content(self):
+        theme = (
+            '{% extends "base.html" %}\n'
+            "{% block head %}<link rel=\"stylesheet\" href=\"/static/css/food.css\">"
+            "{% endblock %}\n"
+        )
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, theme)
+            html = (output / "blog" / "tags" / "food" / "index.html").read_text()
+
+        assert "/static/css/food.css" in html
+        assert "Ramen Notes" in html
+
+    def test_tag_pages_unchanged_when_no_theme_exists(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, None)
+            food = (output / "blog" / "tags" / "food" / "index.html").read_text()
+            python = (output / "blog" / "tags" / "python" / "index.html").read_text()
+
+        for html in (food, python):
+            assert html.lstrip().startswith("<!DOCTYPE html>")
+            assert "<title>Test Site</title>" in html
+            assert "THEMED" not in html
+        assert "Tagged food" in food
+        assert "Ramen Notes" in food
+        assert "Tagged python" in python
+        assert "Python Post" in python
+
+    def test_tag_variable_is_available_to_templates(self):
+        theme = (
+            '{% extends "base.html" %}\n'
+            "{% block header %}<h1>TAG:{{ tag }}</h1>{% endblock %}\n"
+        )
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, theme)
+            html = (output / "blog" / "tags" / "food" / "index.html").read_text()
+
+        assert "TAG:food" in html
+
+    def _warnings(self, caplog) -> str:
+        return "\n".join(r.getMessage() for r in caplog.records if r.levelname == "WARNING")
+
+    def _tag_html(self, output: Path, tag: str) -> str:
+        return (output / "blog" / "tags" / tag / "index.html").read_text()
+
+    def test_no_warnings_for_clean_site(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            self._build(tmpdir, None)
+        assert self._warnings(caplog) == ""
+
+    def test_no_warnings_for_valid_theme(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            self._build(tmpdir, self._THEME)
+        assert self._warnings(caplog) == ""
+
+    def test_warns_when_user_base_html_lacks_page_content(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            self._build(
+                tmpdir, None,
+                {"base.html": "<html>{% block content %}{% endblock %}</html>"},
+            )
+        assert "page_content" in self._warnings(caplog)
+
+    def test_no_warning_when_user_base_html_defines_page_content(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            self._build(
+                tmpdir, None,
+                {"base.html": "<html>{% block page_content %}{% endblock %}</html>"},
+            )
+        assert self._warnings(caplog) == ""
+
+    def test_warns_when_custom_index_does_not_extend_theme(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(
+                tmpdir, self._THEME,
+                {"index.html": "<html><body>{{ title }} CUSTOM</body></html>"},
+            )
+            html = self._tag_html(output, "food")
+        assert "doesn't extend it" in self._warnings(caplog)
+        assert "CUSTOM" in html
+        assert "THEMED" not in html
+
+    def test_no_index_warning_without_a_theme(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            self._build(tmpdir, None, {"index.html": "<html>{{ title }}</html>"})
+        assert "doesn't extend" not in self._warnings(caplog)
+
+    def test_warns_about_wrong_case_theme_filename(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            self._build(tmpdir, None, {"base_Food.html": self._THEME})
+        # Whether the theme applies depends on filesystem case-sensitivity;
+        # the warning is what we guarantee.
+        assert "base_food.html" in self._warnings(caplog)
+
+    def test_warns_when_theme_does_not_extend_base(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            self._build(tmpdir, "<html>standalone</html>")
+        assert "doesn't extend base.html" in self._warnings(caplog)
+
+    def test_no_warning_for_standalone_base_file_with_unused_tag(self, caplog):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            self._build(tmpdir, None, {"base_news.html": "<html>standalone</html>"})
+        assert self._warnings(caplog) == ""
+
+    def test_warnings_do_not_fail_the_build(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(
+                tmpdir, "<html>standalone</html>",
+                {"base.html": "<html></html>", "base_Food.html": self._THEME},
+            )
+            assert (output / "blog" / "tags" / "food" / "index.html").exists()
+
+    def test_theme_overriding_content_replaces_post_list(self):
+        theme = (
+            '{% extends "base.html" %}\n'
+            "{% block content %}<main>OWN-LIST</main>{% endblock %}\n"
+        )
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, theme)
+            html = self._tag_html(output, "food")
+        assert "OWN-LIST" in html
+        assert "Ramen Notes" not in html
+
+    def test_theme_overriding_page_header_loses_to_index(self):
+        theme = (
+            '{% extends "base.html" %}\n'
+            "{% block page_header %}<h1>INNER-LOSES</h1>{% endblock %}\n"
+        )
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, theme)
+            html = self._tag_html(output, "food")
+        assert "INNER-LOSES" not in html
+        assert "Tagged food" in html
+
+    def test_theme_can_keep_default_header_with_super(self):
+        theme = (
+            '{% extends "base.html" %}\n'
+            "{% block header %}<div>WRAP</div>{{ super() }}{% endblock %}\n"
+        )
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, theme)
+            html = self._tag_html(output, "food")
+        assert "WRAP" in html
+        assert "Tagged food" in html
+
+    def test_theme_does_not_leak_to_other_pages(self):
+        theme = (
+            '{% extends "base.html" %}\n'
+            "{% block header %}<header>THEMED</header>{% endblock %}\n"
+        )
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, theme)
+            pages = [
+                output / "index.html",
+                output / "blog" / "index.html",
+                output / "blog" / "tags" / "index.html",
+            ]
+            pages += list((output / "blog").glob("20*/**/index.html"))
+            htmls = [p.read_text() for p in pages if p.exists()]
+        assert htmls
+        assert all("THEMED" not in h for h in htmls)
+
+    def test_tag_index_includes_timezone_script(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            output = self._build(tmpdir, None)
+            html = (output / "blog" / "tags" / "index.html").read_text()
+        assert "/static/js/timezone.js" in html
+
+    def test_tag_that_normalizes_to_empty_does_not_crash(self):
+        runner = CliRunner()
+        with runner.isolated_filesystem() as tmpdir:
+            root = Path(tmpdir)
+            (root / "site.toml").write_text(self._SITE_TOML)
+            (root / "templates").mkdir()
+            _write_blog_post(
+                root / "content",
+                "jp",
+                "---\ntitle: JP\ndate: 2024-03-01\nurl: /blog/jp/\n"
+                "tags: [日本語]\ndescription: d\ndraft: false\n---\nx\n",
+            )
+            with patch(_BUILD_STATIC_PATH):
+                result = runner.invoke(cli, ["build"])
+        assert result.exit_code == 0, result.output

@@ -375,6 +375,58 @@
                 <span class="inline-code">.sparkline-bar</span> targets each
                 <span class="inline-code">&lt;rect&gt;</span> bar (fill, opacity).
             </p>
+
+            <div class="command-title" style="margin-top: 25px;"><span class="highlight-cyan">Tag Themes</span></div>
+            <p style="margin-bottom: 15px; color: #a0afc0;">
+                Any tag archive page (<span class="inline-code">/blog/tags/&lt;tag&gt;/</span>)
+                can get its own look. Drop a template named
+                <span class="inline-code">base_&lt;tag&gt;.html</span> into your
+                <span class="inline-code">templates_dir</span> and it becomes the Jinja parent
+                for that tag's list page. Opt-in, one tag at a time: without a matching file the page
+                renders from the default <span class="inline-code">base.html</span>. Output is
+                functionally unchanged from earlier versions, though not byte-identical (for
+                example <span class="inline-code">tags.html</span> now loads
+                <span class="inline-code">timezone.js</span>).
+            </p>
+            <p style="margin-bottom: 15px; color: #a0afc0;">
+                The filename uses the normalized tag, the same rule that builds the URL: ASCII-folded
+                (accents dropped, non-ASCII removed), lowercased, non-word characters removed,
+                spaces and dashes collapsed to <span class="inline-code">-</span>. A tag written
+                <span class="inline-code">Home Cooking</span> lives at
+                <span class="inline-code">/blog/tags/home-cooking/</span> and is themed by
+                <span class="inline-code">base_home-cooking.html</span>;
+                <span class="inline-code">Caf&eacute;</span> becomes
+                <span class="inline-code">base_cafe.html</span>. Tags with no ASCII characters
+                can't be themed.
+            </p>
+            <div class="code-block"><code>{% extends "base.html" %}
+
+{% block head %}
+    &lt;link rel="stylesheet" href="/static/css/food.css"&gt;
+{% endblock %}
+
+{% block header %}
+    &lt;header class="food-theme"&gt;&lt;h1&gt;{{ tag }}&lt;/h1&gt;&lt;/header&gt;
+{% endblock %}</code></div>
+            <p style="margin-top: 15px; color: #a0afc0;">
+                Anything you leave out falls through to the shipped markup &mdash; the example
+                above restyles the header and adds a stylesheet while the post list is still
+                rendered by the default <span class="inline-code">index.html</span>. Tag list
+                pages receive <span class="inline-code">tag</span>,
+                <span class="inline-code">posts</span>, <span class="inline-code">title</span>
+                and <span class="inline-code">subtitle</span>. Only per-tag archives are
+                themable; the tag index at <span class="inline-code">/blog/tags/</span> always
+                renders from <span class="inline-code">tags.html</span>.
+            </p>
+            <p style="margin-top: 15px; color: #a0afc0;">
+                Existing sites keep building unchanged. If your
+                <span class="inline-code">templates_dir</span> has its own
+                <span class="inline-code">base.html</span> without a
+                <span class="inline-code">page_content</span> block, a custom
+                <span class="inline-code">index.html</span> that doesn't extend
+                <span class="inline-code">base_template</span>, or a theme file with a
+                non-normalized name, the build logs a warning explaining how to opt in.
+            </p>
         </section>
 
         <section>

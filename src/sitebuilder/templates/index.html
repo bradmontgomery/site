@@ -1,17 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-</head>
-<body>
+{% extends base_template|default("base.html", true) %}
+
+{% block page_header %}
     <header>
         <h1>{{ title }}</h1>
         {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
         {% include "_sparkline.html" ignore missing %}
     </header>
+{% endblock %}
 
+{% block page_content %}
     <main>
         {% import 'macros/dates.html' as dates %}
         <ul>
@@ -25,7 +22,4 @@
         {% endfor %}
         </ul>
     </main>
-
-    <script src="/static/js/timezone.js"></script>
-</body>
-</html>
+{% endblock %}
